@@ -32,6 +32,8 @@ const privateKey = Buffer.from(
   "base64"
 ).toString("utf8");
 
+console.log(" [x] Got private key: ", privateKey);
+
 const githubApp = new App({
   appId: process.env.GITHUB_APP_ID!,
   privateKey: privateKey,
@@ -85,8 +87,8 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
 
     if (!repos) {
       console.error(` [-] Not a tracked repository: ${repository.url}`);
-      res.status(200).send("Not a tracked repository.");
-      return;
+      // res.status(200).send("Not a tracked repository.");
+      // return;
     }
 
     const octokit = await githubApp.getInstallationOctokit(installation.id);
