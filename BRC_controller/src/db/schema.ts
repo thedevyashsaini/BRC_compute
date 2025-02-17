@@ -1,0 +1,27 @@
+import { sql } from "drizzle-orm";
+import {decimal, jsonb, pgTable, text, timestamp, uuid} from "drizzle-orm/pg-core";
+
+export const userTable = pgTable("users", {
+    id: uuid().primaryKey(),
+    username: text().notNull().unique(),
+    email: text().notNull().unique(),
+    github_repo: text().notNull(),
+    role: text().notNull().default("participant"),
+});
+
+export const submissionTable = pgTable("submissions", {
+    id: uuid().primaryKey(),
+    user_id: uuid().notNull().references(() => userTable.id),
+    commit_hash: text().notNull(),
+    commit_status: text(),
+    runtime: decimal(),
+    parsed_json: jsonb(),
+    raw_json: jsonb(),
+    timestamp: timestamp().notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const InsertUser = typeof userTable.$inferInsert;
+export const User = typeof userTable.$inferSelect;
+
+export const InsertSubmission = typeof submissionTable.$inferInsert;
+export const Submission = typeof submissionTable.$inferSelect;

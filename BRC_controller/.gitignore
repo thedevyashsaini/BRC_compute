@@ -1,0 +1,9 @@
+*.py
+.env
+.env.*
+.venv
+.idea
+node_modules
+.vscode
+dist
+repo
