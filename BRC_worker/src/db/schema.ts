@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import {decimal, jsonb, pgTable, text, timestamp, uuid} from "drizzle-orm/pg-core";
 
 export const userTable = pgTable("users", {
-    id: uuid().primaryKey(),
+    id: uuid().primaryKey().defaultRandom(),
     username: text().notNull().unique(),
     email: text().notNull().unique(),
     github_repo: text().notNull(),

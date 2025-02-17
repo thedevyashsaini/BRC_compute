@@ -1,23 +1,21 @@
-import amqp from "amqplib/callback_api";
+import amqp from "amqplib/callback_api.js";
 import bodyParser from "body-parser";
 import express, { type Request, type Response } from "express";
-import {App} from "octokit";
+import { App } from "octokit";
 import { promisify } from "util";
 import { exec as execCallback } from "child_process";
 import { dirname } from "path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
-import {
-  handleWebhook,
-} from "./functions/helper";
+import { handleWebhook } from "./functions/helper.js";
 import { getDB } from "./db/index.js";
 import { eq } from "drizzle-orm";
-import { userTable } from "./db/schema";
+import { userTable } from "./db/schema.js";
 
 const exec = promisify(execCallback);
 process.chdir(dirname(fileURLToPath(import.meta.url)));
 
-dotenv.config({path: ".env.local"});
+dotenv.config({ path: ".env" });
 
 const app = express();
 
@@ -29,9 +27,10 @@ app.use(
   })
 );
 
-const privateKey = Buffer.from(process.env.GITHUB_PRIVATE_KEY!, "base64").toString(
-  "utf8"
-);
+const privateKey = Buffer.from(
+  process.env.GITHUB_PRIVATE_KEY!,
+  "base64"
+).toString("utf8");
 
 const githubApp = new App({
   appId: process.env.GITHUB_APP_ID!,
@@ -100,11 +99,11 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
       description: "Initial screen done, sending to test unit...",
     });
 
-    amqp.connect("amqp://localhost", function (error0, connection) {
+    amqp.connect("amqp://localhost", function (error0: any, connection: any) {
       if (error0) {
         throw error0;
       }
-      connection.createChannel(function (error1, channel) {
+      connection.createChannel(function (error1: any, channel: any) {
         if (error1) {
           throw error1;
         }
@@ -114,11 +113,16 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
           durable: false,
         });
 
-        channel.sendToQueue(queue, Buffer.from(JSON.stringify({ ref, repository, installation, after })));
-        console.log(" [x] Sent %s", JSON.stringify({ ref, repository, installation, after }));
+        channel.sendToQueue(
+          queue,
+          Buffer.from(JSON.stringify({ ref, repository, installation, after }))
+        );
+        console.log(
+          " [x] Sent %s",
+          JSON.stringify({ ref, repository, installation, after })
+        );
       });
     });
-
   } catch (error) {
     console.error("Unexpected error:", error);
     res.status(500).send("An unexpected error occurred");
