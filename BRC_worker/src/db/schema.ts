@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import {decimal, jsonb, pgTable, text, timestamp, uuid} from "drizzle-orm/pg-core";
+import {decimal, jsonb, pgTable, text, timestamp, uuid, boolean} from "drizzle-orm/pg-core";
 
 export const userTable = pgTable("users", {
     id: uuid().primaryKey().defaultRandom(),
@@ -10,13 +10,14 @@ export const userTable = pgTable("users", {
 });
 
 export const submissionTable = pgTable("submissions", {
-    id: uuid().primaryKey(),
+    id: uuid().primaryKey().defaultRandom(),
     user_id: uuid().notNull().references(() => userTable.id),
     commit_hash: text().notNull(),
     commit_status: text(),
     runtime: decimal(),
     parsed_json: jsonb(),
     raw_json: jsonb(),
+    is_upgrade: boolean().default(false),
     timestamp: timestamp().notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

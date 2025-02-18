@@ -2,18 +2,11 @@ import amqp from "amqplib/callback_api.js";
 import bodyParser from "body-parser";
 import express, { type Request, type Response } from "express";
 import { App } from "octokit";
-import { promisify } from "util";
-import { exec as execCallback } from "child_process";
-import { dirname } from "path";
-import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { handleWebhook } from "./functions/helper.js";
 import { getDB } from "./db/index.js";
 import { eq } from "drizzle-orm";
 import { userTable } from "./db/schema.js";
-
-const exec = promisify(execCallback);
-process.chdir(dirname(fileURLToPath(import.meta.url)));
 
 dotenv.config({ path: ".env" });
 
@@ -31,8 +24,6 @@ const privateKey = Buffer.from(
   process.env.GITHUB_PRIVATE_KEY!,
   "base64"
 ).toString("utf8");
-
-console.log(" [x] Got private key: ", privateKey);
 
 const githubApp = new App({
   appId: process.env.GITHUB_APP_ID!,
@@ -61,10 +52,7 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
     const { ref, repository, installation, after } = req.body;
     console.log(
       " [x] Got request - ",
-      repository,
-      repository.master_branch,
-      ref,
-      after
+      repository
     );
 
     if (ref !== `refs/heads/${repository.master_branch}`) {
@@ -87,8 +75,8 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
 
     if (!repos) {
       console.error(` [-] Not a tracked repository: ${repository.url}`);
-      // res.status(200).send("Not a tracked repository.");
-      // return;
+      res.status(200).send("Not a tracked repository.");
+      return;
     }
 
     const octokit = await githubApp.getInstallationOctokit(installation.id);
@@ -109,7 +97,7 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
         if (error1) {
           throw error1;
         }
-        var queue = "tests";
+        var queue = "proposal";
 
         channel.assertQueue(queue, {
           durable: false,
@@ -117,7 +105,7 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
 
         channel.sendToQueue(
           queue,
-          Buffer.from(JSON.stringify({ ref, repository, installation, after }))
+          Buffer.from(JSON.stringify({from: "controller", data: { ref, repository, installation, after }}))
         );
         console.log(
           " [x] Sent %s",
