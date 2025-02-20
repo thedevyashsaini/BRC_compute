@@ -1,9 +1,6 @@
 {
   "extends": "@total-typescript/tsconfig/tsc/no-dom/app",
   "compilerOptions": {
-    "outDir": "dist",
-    "module": "CommonJS",
-    "moduleResolution": "Node",
-    "verbatimModuleSyntax": false
+    "outDir": "dist"
   }
 }
