@@ -17,6 +17,7 @@
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.2",
     "express": "^4.21.2",
+    "luxon": "^3.5.0",
     "octokit": "^4.0.2",
     "postgres": "^3.4.5"
   },
@@ -24,6 +25,7 @@
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/amqplib": "^0.10.6",
     "@types/express": "^5.0.0",
+    "@types/luxon": "^3.4.2",
     "@types/node": "^22.10.2",
     "drizzle-kit": "^0.30.1",
     "nodemon": "^3.1.9",

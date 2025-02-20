@@ -1,104 +1,71 @@
 // Function to delete the folder if it exists
 import * as fs from "node:fs";
-import { Webhooks } from "@octokit/webhooks";
-import * as path from "path";
-import {type Request, type Response} from "express";
 import dotenv from "dotenv";
-import {exec} from "node:child_process";
+import type { Octokit } from "octokit";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { submissionTable } from "../db/schema.js";
+import type { Submission } from "../db/schema.js";
+import { eq } from "drizzle-orm";
 
 dotenv.config();
 
 export function deleteFolderIfExists(folderPath: string) {
-    if (fs.existsSync(folderPath)) {
-        fs.rmdirSync(folderPath, { recursive: true });
-        console.log(`Folder '${folderPath}' deleted successfully.`);
-    } else {
-        console.log(`Folder '${folderPath}' does not exist.`);
-    }
-};
-
-export function cleanseString(input: string) {
-    return input
-        .replace(/\s+/g, '')       // Remove all whitespaces and new lines
-        .replace(/[^a-zA-Z0-9_]/g, ''); // Remove anything that's not alphanumeric or an underscore
+  if (fs.existsSync(folderPath)) {
+    fs.rmdirSync(folderPath, { recursive: true });
+    console.log(` [x] Folder '${folderPath}' deleted successfully.`);
+  } else {
+    console.log(` [x] Folder '${folderPath}' does not exist.`);
+  }
 }
 
-export const handleWebhook = async (req: Request, res: Response) => {
-    const webhooks = new Webhooks({
-        secret: process.env.GITHUB_WEBHOOK_SECRET!,
+export class CommitUpdater {
+  private octokit: Octokit;
+  private db: PostgresJsDatabase<any>;
+  private repository: Record<string, any>;
+  private after: string;
+  private submission: Submission | undefined;
+
+  constructor(
+    octokit: Octokit,
+    db: PostgresJsDatabase<any>,
+    repository: Record<string, any>,
+    after: string,
+    submission: Submission | undefined
+  ) {
+    this.octokit = octokit;
+    this.db = db;
+    this.repository = repository;
+    this.after = after;
+    this.submission = submission;
+  }
+
+  async run(state: "pending" | "error" | "failure" | "success", description: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      if (!this.submission) {
+        console.error(" [-] Submission not found");
+        throw new Error("Submission not found");
+      }
+
+      await tx
+        .update(submissionTable)
+        .set({ commit_status: state + " | " + description })
+        .where(eq(submissionTable.id, this.submission.id));
+
+      try {
+        await this.octokit.rest.repos.createCommitStatus({
+          owner: this.repository.owner.login,
+          repo: this.repository.name,
+          sha: this.after,
+          state: "pending",
+          description: `Holon buddy, ${process.env.worker_name} here! Lemme cook...`,
+        });
+      } catch (error) {
+        console.error(
+          " [-] GitHub API call failed, rolling back transaction:",
+          error
+        );
+        throw new Error("GitHub API call failed");
+      }
     });
-
-
-    const signature = req.headers["x-hub-signature-256"] as string;
-    //@ts-ignore
-    const body = req.rawBody;
-
-    if (!(await webhooks.verify(body, signature))) {
-        res.status(401).send("Unauthorized");
-        return false;
-    }
-
-    return true
-};
-
-function cloneRepo(repositoryUrl: string, token: string) {
-    const authenticatedUrl = repositoryUrl.replace(
-        "https://",
-        `https://${token}@`
-    );
-
-    exec(`git clone ${authenticatedUrl}`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error cloning repository: ${error.message}`);
-            return;
-        }
-        console.log(`Repository cloned successfully: ${stdout}`);
-    });
+  }
 }
-
-export const validateRepoStructure = async (repoPath: string): Promise<boolean> => {
-    const requiredFiles = [
-        '.dockerignore',
-        '.gitignore',
-        'Dockerfile',
-        'docker-compose.yml',
-        'requirements.txt',
-        'src/app/main.py',
-        'src/app/yourbot/bot.py',
-        'src/app/yourbot/main.py',
-        'src/test/actually_dumbbot.py',
-        'src/test/test.py',
-        'src/test/test_bot.py',
-        'src/test/test_dumbbot.py'
-    ];
-
-    try {
-
-        const directories = [
-            '.github/workflows',
-            'src/app/yourbot',
-            'src/test'
-        ];
-
-        for (const dir of directories) {
-            const dirPath = path.join(repoPath, dir);
-            if (!fs.existsSync(dirPath)) {
-                console.log(`Missing required directory: ${dir}`);
-                return false;
-            }
-        }
-
-        for (const file of requiredFiles) {
-            const filePath = path.join(repoPath, file);
-            if (!fs.existsSync(filePath)) {
-                console.log(`Missing required file: ${file}`);
-                return false;
-            }
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error validating repository structure:', error);
-        return false;
-    }
-};

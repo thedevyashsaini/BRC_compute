@@ -21,8 +21,8 @@ export const submissionTable = pgTable("submissions", {
     timestamp: timestamp().notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const InsertUser = typeof userTable.$inferInsert;
-export const User = typeof userTable.$inferSelect;
+export type InsertUser = typeof userTable.$inferInsert;
+export type User = typeof userTable.$inferSelect;
 
-export const InsertSubmission = typeof submissionTable.$inferInsert;
-export const Submission = typeof submissionTable.$inferSelect;
+export type InsertSubmission = typeof submissionTable.$inferInsert;
+export type Submission = typeof submissionTable.$inferSelect;
