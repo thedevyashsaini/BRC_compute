@@ -89,7 +89,7 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
       description: "Initial screen done, sending to test unit...",
     });
 
-    amqp.connect("amqp://localhost", function (error0: any, connection: any) {
+    amqp.connect("amqp://rabbitmq", function (error0: any, connection: any) {
       if (error0) {
         throw error0;
       }

@@ -12,7 +12,6 @@ import { submissionTable, userTable } from "./db/schema.js";
 import { eq } from "drizzle-orm";
 import { promisify } from "util";
 import {exec as execCallback} from 'child_process';
-import { except } from "drizzle-orm/mysql-core";
 import { parseBenchmark, type BenchmarkStats } from "./functions/benchmark.js";
 
 const exec = promisify(execCallback);
@@ -30,7 +29,7 @@ const githubApp = new App({
   privateKey: privateKey,
 });
 
-amqp.connect("amqp://localhost", function (error0, connection) {
+amqp.connect("amqp://rabbitmq", function (error0, connection) {
   if (error0) {
     throw error0;
   }
@@ -108,7 +107,7 @@ amqp.connect("amqp://localhost", function (error0, connection) {
             console.log(" [x] Updated initial commit status for that moron");
           });
 
-          const containerName = `${repository.owner.name}_${repository.name}`;
+          const containerName = `${repository.owner.name}_${repository.name}`.toLowerCase();
 
           const folderPath = path.join(
             dirname(currentDirectory),
@@ -145,14 +144,14 @@ amqp.connect("amqp://localhost", function (error0, connection) {
 
               await commitUpdater.run("pending", `Got your code, building...`);
 
-              const { stdout: buildOutput } = await exec(`cd ${folderPath} && docker build -q -t ${containerName}`);
+              const { stdout: buildOutput } = await exec(`cd ${folderPath} && docker build -q -t ${containerName} .`);
               console.log(` [x] Docker build -> ${buildOutput}`);
 
               await commitUpdater.run("pending", `Segssy, build succeeded, running benchmarks...`);
 
           } catch (error: any) {
             await commitUpdater.run("error", "Clone or build fked up: " + error.toString());
-            throw new Error("Clone or build fked up: %s", error);
+            throw new Error(`Clone or build fked up: ${error}`);
           }
 
           let benchData: {
@@ -161,28 +160,25 @@ amqp.connect("amqp://localhost", function (error0, connection) {
           };
 
           try {
-            console.log(" [x] Build succeeded, starting container...")
-            await exec(`docker run -d --name ${containerName} ${containerName}`);
+            console.log(" [x] Build succeeded...")
 
             // TODO: make sure the submission container dockerfile installs pyperf inside the container
             
             console.log(" [x] Running benchmarks...");
-            await exec(
-              `docker exec ${containerName} python3 -m pyperf command -o /app/bench.json -p 1 -- python3 /app/script.py`
-            );
+            await exec(`docker run -d --name temp_${containerName} ${containerName} /venv/bin/python -m pyperf command -o /app/bench.json -p 1 -- python /app/script.py`);
 
             console.log(" [x] Fetching benchmark results...");
-            await exec(`docker cp ${containerName}:/app/bench.json ./bench.json`);
+            await exec(`docker cp temp_${containerName}:/app/bench.json ./bench.json`);
 
             benchData = await parseBenchmark("./bench.json");
             console.log(" [x] Parsed benchmark Data: ", benchData);
 
             console.log(" [x] Stopping & removing container...");
-            await exec(`docker stop ${containerName} && docker rm ${containerName}`);
+            await exec(`docker rm -f temp_${containerName}`);
               
           } catch (error: any) {
             await commitUpdater.run("error", "Test and benchmark fked up: " + error.toString());
-            throw new Error("Test and benchmark fked up: %s", error);
+            throw new Error(`Test and benchmark fked up: ${error}`);
           }
 
           if (!benchData) {

@@ -1,0 +1,34 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.0-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  controller:
+    env_file:
+      - .env
+    build:
+      context: .
+    environment:
+      NODE_ENV: production
+    ports:
+      - "5000:5000"
+    depends_on:
+      - rabbitmq
+
+  worker:
+    user: root
+    env_file:
+      - ../BRC_worker/.env
+    build:
+      context: ../BRC_worker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      NODE_ENV: production
+      DOCKER_BUILDKIT: 1
+    depends_on:
+      - rabbitmq
