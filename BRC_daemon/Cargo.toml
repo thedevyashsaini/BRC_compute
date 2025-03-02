@@ -1,0 +1,10 @@
+[package]
+name = "billion_rows"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.36", features = ["full"] }
+rand = "0.8"
+csv = "1.3"
+uuid = { version = "1.7.0", features = ["v4"] }
