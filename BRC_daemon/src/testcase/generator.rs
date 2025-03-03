@@ -67,8 +67,8 @@ async fn generate_chunk_data(size: usize) -> ChunkData {
     
     for _ in 0..size {
         let city = CITIES[rng.gen_range(0..CITIES.len())];
-        let temp = (rng.r#gen::<f64>() * 55.0 - 10.0).round() / 100.0;
-        data.push_str(&format!("{};{:.2}\n", city, temp));
+        let temp = rng.gen_range(-99.0..99.0);
+        data.push_str(&format!("{};{:.1}\n", city, temp));
     }
 
     ChunkData { data, rows: size }
@@ -112,7 +112,6 @@ pub async fn generate_testcase(num_rows: usize) -> std::io::Result<String> {
     let gen_timer = Timer::new("Data generation");
 
     let (tx, rx) = mpsc::channel(NUM_WORKERS * 2);
-    let output_file_clone = output_file.clone();
 
     std::fs::create_dir_all("testcases")?;
     let file_path = std::path::Path::new("testcases").join(&output_file);
