@@ -2,7 +2,6 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};
 use std::collections::HashMap;
-use std::fs;
 
 #[derive(Debug, Serialize)]
 pub struct BenchmarkStats {
@@ -28,9 +27,16 @@ pub struct BenchmarkStats {
     outliers: usize,
 }
 
+impl BenchmarkStats {
+    pub fn get_mean(&self) -> f64 {
+        self.mean
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct Run {
-    values: Vec<f64>,
+    values: Option<Vec<f64>>,
+    warmups: Vec<(u32, f64)>,
     metadata: Metadata,
 }
 
@@ -87,15 +93,16 @@ fn percentile(values: &[f64], p: f64) -> f64 {
     sorted[base] + rest * (sorted[base + 1] - sorted[base])
 }
 
-pub fn parse(filename: &str) -> Result<(BenchmarkStats, Value)> {
-    let content = fs::read_to_string(filename).expect("Failed to read file");
-    let data: Value = serde_json::from_str(&content)?;
-    let benchmark = &data["benchmarks"][0];
+pub fn parse(data: serde_json::Value) -> Result<(BenchmarkStats, Value)> {
+    let benchmark: &Value = &data["benchmarks"][0];
     let runs: Vec<Run> = serde_json::from_value(benchmark["runs"].clone())?;
 
-    let mut all_values = Vec::new();
+    let mut all_values: Vec<f64> = Vec::new();
+
     for run in runs.iter().skip(1) {
-        all_values.extend(&run.values);
+        if let Some(values) = &run.values {
+            all_values.extend(values);
+        }
     }
 
     let values_ms: Vec<f64> = all_values.iter().map(|&v| v * 1_000_000.0).collect();
@@ -136,28 +143,31 @@ pub fn parse(filename: &str) -> Result<(BenchmarkStats, Value)> {
         .filter(|&&x| x < lower_bound || x > upper_bound)
         .count();
 
-    let stats = BenchmarkStats {
-        total_duration,
-        start_date,
-        end_date,
-        raw_min: all_values.iter().copied().fold(f64::INFINITY, f64::min) * 1000.0,
-        raw_max: all_values.iter().copied().fold(f64::NEG_INFINITY, f64::max) * 1000.0,
-        calibration_runs: 1,
-        value_runs: (runs.len() - 1) as u32,
-        total_runs: runs.len() as u32,
-        warmups_per_run: 1,
-        values_per_run: runs[1].values.len(),
-        loop_iterations: 128,
-        total_values: values_ms.len(),
-        minimum: *values_ms.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap(),
-        median: median_value,
-        mad,
-        mean: mean_value,
-        stddev: stddev_value,
-        maximum: *values_ms.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap(),
-        percentiles,
-        outliers,
-    };
+        let stats = BenchmarkStats {
+            total_duration,
+            start_date,
+            end_date,
+            // Convert to microseconds
+            raw_min: all_values.iter().copied().fold(f64::INFINITY, f64::min) * 1_000_000.0,
+            raw_max: all_values.iter().copied().fold(f64::NEG_INFINITY, f64::max) * 1_000_000.0,
+            calibration_runs: runs[0].warmups.len() as u32,
+            value_runs: (runs.len() - 1) as u32,
+            total_runs: runs.len() as u32,
+            warmups_per_run: runs.iter().skip(1).next().map(|r| r.warmups.len() as u32).unwrap_or(0),
+            values_per_run: runs.iter().skip(1).next()
+                .and_then(|r| r.values.as_ref().map(|v| v.len()))
+                .unwrap_or(0),
+            loop_iterations: runs[0].warmups[0].0 as u32,  // Get loop count from first warmup
+            total_values: values_ms.len(),
+            minimum: *values_ms.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&0.0),
+            median: median_value,
+            mad,
+            mean: mean_value,
+            stddev: stddev_value,
+            maximum: *values_ms.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&0.0),
+            percentiles,
+            outliers,
+        };
 
     Ok((stats, data))
 }
