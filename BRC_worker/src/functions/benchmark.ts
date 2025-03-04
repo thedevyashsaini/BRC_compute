@@ -24,7 +24,7 @@ export interface BenchmarkStats {
   outliers: number;
 }
 
-function median(values: number[]): number {
+function median(values: number[]): number { 
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   if (sorted.length === 0) {

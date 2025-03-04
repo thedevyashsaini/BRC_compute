@@ -135,11 +135,22 @@ pub async fn generate_testcase(num_rows: usize) -> std::io::Result<String> {
     }
 
     for handle in handles {
-        handle.await.unwrap();
+        if let Err(e) = handle.await {
+            eprintln!("Task join error: {}", e);
+        }
     }
 
-    tx.send(None).await.unwrap();
-    writer_handle.await.unwrap()?;
+    if let Err(e) = tx.send(None).await {
+        eprintln!("Failed to send termination signal: {}", e);
+    }
+
+    match writer_handle.await {
+        Ok(result) => result?,
+        Err(e) => {
+            eprintln!("Writer task failed: {}", e);
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+        }
+    }
 
     gen_timer.elapsed();
 
