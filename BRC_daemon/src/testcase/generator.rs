@@ -5,7 +5,7 @@ use std::{
     time::Instant,
 };
 use rand::{thread_rng, Rng};
-use tokio::{sync::mpsc};
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
 const CITIES: [&str; 221] = [
