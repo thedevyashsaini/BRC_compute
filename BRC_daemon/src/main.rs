@@ -69,7 +69,7 @@ async fn main() -> std::io::Result<()> {
                 .next()
                 .unwrap()
                 .to_string();
-            testcase::solver::solve_optimized(testcase_file).unwrap();
+            testcase::solver::solve_testcase(testcase_file)?;
         } else {
             let testcase_file: String = testcase::generator::generate_testcase(num_rows).await?;
             let testcase_file_path: std::path::PathBuf = testcase_path.join(&testcase_file);
@@ -85,7 +85,7 @@ async fn main() -> std::io::Result<()> {
                 "Generated test case file: {}",
                 testcase_file_path.to_str().unwrap()
             );
-            testcase::solver::solve_optimized(testcase_file_path.to_str().unwrap()).unwrap();
+            testcase::solver::solve_testcase(testcase_file_path.to_str().unwrap())?;
         }
     }
 
@@ -212,9 +212,9 @@ async fn main() -> std::io::Result<()> {
         test_results.insert(city, values);
     }
 
-    let expected_output_file: std::fs::File = match std::fs::File::open(format!("../{}/answer_{}_{}.txt", 
-        testcase_path.to_str().unwrap(), 
-        num_rows, 
+    let expected_output_file: std::fs::File = match std::fs::File::open(format!("../{}/answer_{}_{}.txt",
+        testcase_path.to_str().unwrap(),
+        num_rows,
         testcase_id)) {
         Ok(f) => f,
         Err(e) => {
@@ -254,9 +254,9 @@ async fn main() -> std::io::Result<()> {
     }
 
     if test_results.len() != expected_results.len() {
-        write_status(false, format!("Number of cities mismatch: expected {} cities, got {}", 
+        write_status(false, format!("Number of cities mismatch: expected {} cities, got {}",
             expected_results.len(), test_results.len()).as_str()).await?;
-        panic!("Number of cities mismatch: expected {} cities, got {}", 
+        panic!("Number of cities mismatch: expected {} cities, got {}",
             expected_results.len(), test_results.len());
     }
 
@@ -264,18 +264,18 @@ async fn main() -> std::io::Result<()> {
         match test_results.get(city) {
             Some(test_values) => {
                 if test_values.len() != expected_values.len() {
-                    write_status(false, format!("Number of values mismatch for city {}: expected {}, got {}", 
+                    write_status(false, format!("Number of values mismatch for city {}: expected {}, got {}",
                         city, expected_values.len(), test_values.len()).as_str()).await?;
-                    panic!("Number of values mismatch for city {}: expected {}, got {}", 
+                    panic!("Number of values mismatch for city {}: expected {}, got {}",
                         city, expected_values.len(), test_values.len());
                 }
                 
                 for (i, (test_val, expected_val)) in test_values.iter().zip(expected_values.iter()).enumerate() {
                     const EPSILON: f64 = 1e-6;
                     if (test_val - expected_val).abs() > EPSILON {
-                        write_status(false, format!("Value mismatch for city {} at position {}: expected {}, got {}", 
+                        write_status(false, format!("Value mismatch for city {} at position {}: expected {}, got {}",
                             city, i, expected_val, test_val).as_str()).await?;
-                        panic!("Value mismatch for city {} at position {}: expected {}, got {}", 
+                        panic!("Value mismatch for city {} at position {}: expected {}, got {}",
                             city, i, expected_val, test_val);
                     }
                 }
@@ -361,7 +361,7 @@ async fn main() -> std::io::Result<()> {
         .unwrap();
 
     let benchmark_output_writer: std::io::BufWriter<std::fs::File> = std::io::BufWriter::new(benchmark_output_file);
-    if let Err(e) = serde_json::to_writer(benchmark_output_writer, &parsed_benchmark) {
+    if let Err(e) = serde_json::to_writer_pretty(benchmark_output_writer, &parsed_benchmark) {
         write_status(false, &format!("Failed to write benchmark results: {}", e)).await.unwrap();
         return Ok(());
     }

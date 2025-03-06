@@ -10,7 +10,7 @@ use std::{
 const NUM_WORKERS: usize = 10;
 
 #[allow(dead_code)]
-pub async fn solve_testcase(input_file: &str) -> std::io::Result<()> {
+pub fn solve_testcase(input_file: &str) -> std::io::Result<()> {
     let file = File::open(input_file)?;
     let file_hash = input_file.split("_").last().unwrap().split(".").next().unwrap();
     let row_count = input_file.split("_").nth(1).unwrap().parse::<usize>().unwrap();
@@ -20,47 +20,61 @@ pub async fn solve_testcase(input_file: &str) -> std::io::Result<()> {
 
     let reader: BufReader<File> = BufReader::new(file);
 
-    let output_file: String = format!("testcases/answer_{}_{}.txt", row_count,file_hash);
+    let output_file: String = format!("testcases/answer_{}_{}.txt", row_count, file_hash);
     let mut file: File = OpenOptions::new().create(true).write(true).truncate(true).open(output_file)?;
 
-
-    let mut records: HashMap<String, (f32, f64, f32, usize)> = HashMap::new();
+    // Use integers to store temperatures (multiplied by 10)
+    let mut records: HashMap<String, (i64, i64, i64, usize)> = HashMap::new();
 
     for line in reader.lines() {
         let line = line?;
         let (city, temp_str) = line.split_once(";").unwrap();
-        let temp: f32 = temp_str.parse().unwrap();
-        // println!("City: {}, Temp: {}", city, temp);
+
+        // Parse as float first, then convert to integer by multiplying by 10
+        let temp_float: f64 = temp_str.parse().unwrap();
+        let temp = (temp_float * 10.0).round() as i64;
         let city_string = city.to_string();
 
         match records.get(&city_string) {
             Some(temps) => {
                 let min_temp = if temp < temps.0 { temp } else { temps.0 };
-                let total_temp = temps.1 + temp as f64;
+                let total_temp = temps.1 + temp;
                 let max_temp = if temp > temps.2 { temp } else { temps.2 };
                 let count = temps.3 + 1;
                 records.insert(city_string, (min_temp, total_temp, max_temp, count));
             }
             None => {
-                records.insert(city_string, (temp, temp as f64, temp, 1));
+                records.insert(city_string, (temp, temp, temp, 1));
             }
         }
     }
 
     let mut keys: Vec<String> = records.keys().cloned().collect();
     keys.sort();
-    
+
     for key in keys {
         let value = records.get(&key);
 
         match value {
             Some((min_temp, total_temp, max_temp, count)) => {
-                let mut avg_temp = (((total_temp / *count as f64) * 10.0).round()) / 10.0;
-                if avg_temp == 0.0 {
-                    avg_temp = 0.0;
-                }
-                writeln!(file, "{}={}/{:.1}/{}", key, min_temp, avg_temp, max_temp)?;
-                println!("{}={}/{:.1}/{}", key, min_temp, avg_temp, max_temp);
+                let avg = (*total_temp as f64 / *count as f64).ceil();
+                println!("Total Temp for {}: {} with avg of {}", key, total_temp, avg);
+                // Format with one decimal place by dividing by 10
+                writeln!(
+                    file,
+                    "{}={:.1}/{:.1}/{:.1}",
+                    key,
+                    *min_temp as f64 / 10.0,
+                    avg / 10.0,
+                    *max_temp as f64 / 10.0
+                )?;
+                // println!(
+                //     "{}={:.1}/{:.1}/{:.1}",
+                //     key,
+                //     *min_temp as f64 / 10.0,
+                //     avg as f64 / 10.0,
+                //     *max_temp as f64 / 10.0
+                // );
             }
             None => {
                 println!("City: {}, No data", key);
