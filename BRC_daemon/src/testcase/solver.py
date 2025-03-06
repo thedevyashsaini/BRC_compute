@@ -27,7 +27,7 @@ def main(input_file_name="testcase.txt", output_file_name="output.txt"):
     for city, stats in city_data.items():
         min_temp = stats["min"]
         max_temp = stats["max"]
-        mean_temp = math.ceil(round((stats["sum"] / stats["count"]) * 100) / 10) / 10
+        mean_temp = math.ceil(round((stats["sum"] / stats["count"]) * 10000000) / 1000000) / 10
         print(f"{city}=Avg: {mean_temp}, sum: {stats['sum']}, count: {stats['count']}")
         output_file.write(f"{city}={min_temp}/{mean_temp}/{max_temp}\n")
 
