@@ -20,15 +20,19 @@ pub fn solve_testcase(input_file: &str) -> std::io::Result<()> {
 
     let reader: BufReader<File> = BufReader::new(file);
 
-    let output_file: String = format!("testcases/answer_{}_{}.txt", row_count,file_hash);
+    let output_file: String = format!("testcases/answer_{}_{}.txt", row_count, file_hash);
     let mut file: File = OpenOptions::new().create(true).write(true).truncate(true).open(output_file)?;
 
-    let mut records: HashMap<String, (f32, f32, f32, usize)> = HashMap::new();
+    // Use integers to store temperatures (multiplied by 10)
+    let mut records: HashMap<String, (i64, i64, i64, usize)> = HashMap::new();
 
     for line in reader.lines() {
         let line = line?;
         let (city, temp_str) = line.split_once(";").unwrap();
-        let temp: f32 = temp_str.parse().unwrap();
+
+        // Parse as float first, then convert to integer by multiplying by 10
+        let temp_float: f64 = temp_str.parse().unwrap();
+        let temp = (temp_float * 10.0).round() as i64;
         let city_string = city.to_string();
 
         match records.get(&city_string) {
@@ -53,12 +57,24 @@ pub fn solve_testcase(input_file: &str) -> std::io::Result<()> {
 
         match value {
             Some((min_temp, total_temp, max_temp, count)) => {
-                // Calculate average first, then round to 1 decimal place
-                let avg = total_temp / *count as f32;
-                let avg_temp = (avg * 10.0).round() / 10.0;
-
-                writeln!(file, "{}={}/{}/{}", key, min_temp, avg_temp, max_temp)?;
-                println!("{}={}/{:.1}/{}", key, min_temp, avg_temp, max_temp);
+                let avg = (*total_temp as f64 / *count as f64).ceil();
+                println!("Total Temp for {}: {} with avg of {}", key, total_temp, avg);
+                // Format with one decimal place by dividing by 10
+                writeln!(
+                    file,
+                    "{}={:.1}/{:.1}/{:.1}",
+                    key,
+                    *min_temp as f64 / 10.0,
+                    avg / 10.0,
+                    *max_temp as f64 / 10.0
+                )?;
+                // println!(
+                //     "{}={:.1}/{:.1}/{:.1}",
+                //     key,
+                //     *min_temp as f64 / 10.0,
+                //     avg as f64 / 10.0,
+                //     *max_temp as f64 / 10.0
+                // );
             }
             None => {
                 println!("City: {}, No data", key);
