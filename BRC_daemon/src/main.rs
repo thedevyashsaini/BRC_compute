@@ -193,16 +193,11 @@ async fn main() -> std::io::Result<()> {
         _ => {}
     };
 
-
-    if let Err(e) = std::env::set_current_dir("src") {
-        write_status(false, &format!("Failed to change directory to src: {}", e)).await?;
-        return Ok(());
-    }
-
     println!("Running unbenchmarked test...");
 
-    let mut child: std::process::Child = Command::new("python3.13")
+    let mut child: std::process::Child = Command::new("python")
         .args(["-X", "gil=0", "main.py"])
+        .current_dir("src") 
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
         .spawn()
@@ -236,7 +231,7 @@ async fn main() -> std::io::Result<()> {
 
     println!("Testing output...");
     
-    let test_output_file = match std::fs::File::open("./output.txt") {
+    let test_output_file = match std::fs::File::open("src/output.txt") {
         Ok(f) => f,
         Err(e) => {
             write_status(false, &format!("Failed to open test output file: {}", e)).await?;
@@ -404,11 +399,11 @@ async fn main() -> std::io::Result<()> {
     
     println!("Running benchmark...");
 
-    let benchmark_file_name: &str = "../output/bench.json";
+    let benchmark_file_name: &str = "output/bench.json";
 
     std::fs::remove_file(benchmark_file_name).unwrap_or_default();
 
-    let mut child: std::process::Child = Command::new("python3.13")
+    let mut child: std::process::Child = Command::new("python")
         .args([
             "-X",
             "gil=0",
@@ -416,15 +411,16 @@ async fn main() -> std::io::Result<()> {
             "pyperf",
             "command",
             "-o",
-            benchmark_file_name,
+            format!("../{}",benchmark_file_name).as_str(),
             "-p",
             "1",
             "--",
-            "python3.13",
+            "python",
             "-X",
             "gil=0",
             "main.py",
         ])
+        .current_dir("src") 
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
         .spawn()
@@ -475,7 +471,7 @@ async fn main() -> std::io::Result<()> {
     );
 
     // create file for parsed benchmark output
-    let bench_parsed_path: &str = "../output/bench_parsed.json";
+    let bench_parsed_path: &str = "output/bench_parsed.json";
     if !std::path::Path::new(bench_parsed_path).exists() {
         std::fs::File::create(bench_parsed_path)?;
     }

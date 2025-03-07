@@ -9,7 +9,6 @@ use std::{
 
 const NUM_WORKERS: usize = 10;
 
-#[allow(dead_code)]
 pub fn solve_testcase(input_file: &str) -> std::io::Result<()> {
     let file = File::open(input_file)?;
     let file_hash = input_file.split("_").last().unwrap().split(".").next().unwrap();
@@ -85,6 +84,7 @@ pub fn solve_testcase(input_file: &str) -> std::io::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn solve_optimized(input_file: &str) -> std::io::Result<()> {
     let start = Instant::now();
     let file = File::open(input_file)?;
