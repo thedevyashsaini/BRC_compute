@@ -58,7 +58,7 @@ pub fn solve_testcase(input_file: &str) -> std::io::Result<()> {
         match value {
             Some((min_temp, total_temp, max_temp, count)) => {
                 let avg = (*total_temp as f64 / *count as f64).ceil();
-                println!("Total Temp for {}: {} with avg of {}", key, total_temp, avg);
+                // println!("Total Temp for {}: {} with avg of {}", key, total_temp, avg);
                 // Format with one decimal place by dividing by 10
                 writeln!(
                     file,
