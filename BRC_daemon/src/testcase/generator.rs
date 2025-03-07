@@ -104,6 +104,15 @@ async fn writer_task(
 pub async fn generate_testcase(num_rows: usize) -> std::io::Result<String> {
     let unique_id = Uuid::new_v4();
     let output_file = format!("testcase_{}_{}.txt", num_rows, unique_id);
+
+    let testcases_dir = "testcases";
+    if let Err(e) = std::fs::create_dir_all(testcases_dir) {
+        eprintln!("Failed to create testcases directory: {}", e);
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to create testcases directory: {}", e),
+        ));
+    }
     
     println!("Starting data generation with {} workers", NUM_WORKERS);
     println!("Output file: {}", output_file);
@@ -113,12 +122,12 @@ pub async fn generate_testcase(num_rows: usize) -> std::io::Result<String> {
 
     let (tx, rx) = mpsc::channel(NUM_WORKERS * 2);
 
-    std::fs::create_dir_all("testcases")?;
-    let file_path = std::path::Path::new("testcases").join(&output_file);
-    let output_file_path = file_path.to_str().unwrap().to_string();
+    let output_file_path = format!("{}/{}", testcases_dir, output_file);
+    println!("Writing to: {}", output_file_path);
 
+    let output_file_path_clone = output_file_path.clone();
     let writer_handle = tokio::spawn(async move {
-        writer_task(rx, &output_file_path, num_rows).await
+        writer_task(rx, &output_file_path_clone, num_rows).await
     });
 
     let mut handles = vec![];
@@ -154,11 +163,17 @@ pub async fn generate_testcase(num_rows: usize) -> std::io::Result<String> {
 
     gen_timer.elapsed();
 
-    let metadata = std::fs::metadata(&file_path)?;
-    println!(
-        "Final file size: {:.2} GB",
-        metadata.len() as f64 / (1024.0 * 1024.0 * 1024.0)
-    );
+    match std::fs::metadata(&output_file_path) {
+        Ok(metadata) => {
+            println!(
+                "Final file size: {:.2} GB",
+                metadata.len() as f64 / (1024.0 * 1024.0 * 1024.0)
+            );
+        }
+        Err(e) => {
+            eprintln!("Failed to get file metadata: {}", e);
+        }
+    }   
 
     timer.elapsed();
     Ok(output_file)
