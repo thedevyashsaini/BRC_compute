@@ -1,0 +1,49 @@
+# Stage 1: Build Python 3.13 with No-GIL
+FROM ubuntu:latest as builder
+
+RUN apt-get update && apt-get install -y \
+    git build-essential \
+    zlib1g-dev libncurses5-dev libgdbm-dev \
+    libnss3-dev libssl-dev libreadline-dev libffi-dev \
+    wget xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/python
+
+RUN wget https://www.python.org/ftp/python/3.13.0/Python-3.13.0.tar.xz && \
+    tar xf Python-3.13.0.tar.xz && \
+    cd Python-3.13.0 && \
+    ./configure \
+        --prefix=/usr/local/python3.13 \
+        --enable-shared \
+        --enable-optimizations \
+        --disable-gil \
+        --with-lto \
+        --with-pydebug \
+        LDFLAGS="-Wl,-rpath=/usr/local/python3.13/lib" \
+        CFLAGS="-fPIC -O3" && \
+    make -j$(nproc) && \
+    make install STRIP=1 && \
+    find /usr/local/python3.13 -name '__pycache__' -exec rm -rf {} +
+
+# Remove unnecessary static libraries
+RUN rm -rf /usr/local/python3.13/lib/*.a /usr/local/python3.13/lib/python3.13/test
+
+# Stage 2: Minimal final image
+FROM ubuntu:latest
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 libffi8 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/python3.13 /usr/local/python3.13
+
+RUN ln -s /usr/local/python3.13/bin/python3.13 /usr/local/bin/python && \
+    ln -s /usr/local/python3.13/bin/pip3.13 /usr/local/bin/pip
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPYCACHEPREFIX=/tmp/pycache
+
+LABEL description="Python 3.13 with No-GIL, optimized for fast builds"
+
+CMD ["python"]
