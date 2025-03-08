@@ -11,7 +11,7 @@ dotenv.config();
 
 export function deleteFolderIfExists(folderPath: string) {
   if (fs.existsSync(folderPath)) {
-    fs.rmdirSync(folderPath, { recursive: true });
+    fs.rmSync(folderPath, { recursive: true, force: true });
     console.log(` [x] Folder '${folderPath}' deleted successfully.`);
   } else {
     console.log(` [x] Folder '${folderPath}' does not exist.`);
@@ -57,7 +57,7 @@ export class CommitUpdater {
           repo: this.repository.name,
           sha: this.after,
           state: state,
-          description: description,
+          description: description.length > 140 ? description.substring(0, 140) : description,
         });
       } catch (error) {
         console.error(

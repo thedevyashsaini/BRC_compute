@@ -198,10 +198,15 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
 
             await commitUpdater.run("pending", `Got your code, building...`);
 
-            const { stdout: buildOutput } = await exec(
-              `cd ${folderPath} && docker build -q -t ${containerName} .`
+            console.log(" [*] Starting Docker build...");
+            const { stdout, stderr } = await exec(
+              `cd ${folderPath} && docker build -t ${containerName} .`
             );
-            console.log(` [x] Docker build -> ${buildOutput}`);
+            console.log(` [x] Docker build stdout -> ${stdout}`);
+            if (stderr) {
+              console.error(` [-] Docker build stderr -> ${stderr}`);
+            }
+            console.log(" [x] Docker build completed");
 
             await commitUpdater.run(
               "pending",
@@ -224,10 +229,23 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
             console.log(" [x] Build succeeded...");
 
             console.log(" [x] Running benchmarks...");
+            // Run docker-compose in detached mode
             await exec(
-              `cd ${folderPath} && LEVEL=100 CONTAINER_NAME=${containerName} docker-compose up`
+                `cd ${folderPath} && LEVEL=0.001 CONTAINER_NAME=${containerName} docker-compose up -d`
+            );
+            
+            // Stream logs until container stops
+            const { stdout, stderr } = await exec(
+                `cd ${folderPath} && docker-compose logs -f`
             );
 
+            console.log(" [x] Benchmark logs:");
+            console.log(stdout);
+
+            if (stderr) {
+                console.error(" [-] Benchmark stderr:", stderr);
+            }
+            
             console.log(" [x] Fetching benchmark results...");
 
             try {
@@ -235,7 +253,7 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
               await fs.promises.unlink("./bench.json");
               await fs.promises.unlink("./bench_parsed.json");
             } catch (error: any) {
-              console.log(" [-] Failed to delete benchmark files.:", error.message);
+              console.log(" [-] Failed to delete benchmark files.:");
             }
 
             let copySuccess = {
@@ -244,9 +262,15 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
               bench_parsed: false,
             };
 
+            const outputPath = path.join(folderPath, 'output');
+
+            // print what all is inside the folder 
+            console.log(" [x] Output folder contents: ", await fs.promises.readdir(folderPath));
+
             try {
-              await exec(
-                `docker cp temp_${containerName}:/usr/src/app/output/status.json ./status.json`
+              await fs.promises.copyFile(
+                path.join(outputPath, 'status.json'),
+                './status.json'
               );
               copySuccess.status = true;
               console.log(" [x] Successfully copied status.json");
@@ -278,8 +302,9 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
             }
 
             try {
-              await exec(
-                `docker cp temp_${containerName}:/usr/src/app/output/bench.json ./bench.json`
+              await fs.promises.copyFile(
+                path.join(outputPath, 'bench.json'),
+                './bench.json'
               );
               copySuccess.bench = true;
               console.log(" [x] Successfully copied bench.json");
@@ -288,8 +313,9 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
             }
 
             try {
-              await exec(
-                `docker cp temp_${containerName}:/usr/src/app/output/bench_parsed.json ./bench_parsed.json`
+              await fs.promises.copyFile(
+                path.join(outputPath, 'bench_parsed.json'),
+                './bench_parsed.json'
               );
               copySuccess.bench_parsed = true;
               console.log(" [x] Successfully copied bench_parsed.json");
@@ -324,6 +350,8 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
             console.log(" [x] Parsed benchmark Data: ", benchData.parsed);
 
             console.log(" [x] Stopping & removing container...");
+
+            deleteFolderIfExists(folderPath); 
             await exec(`docker rm -f temp_${containerName}`);
           } catch (error: any) {
             await commitUpdater.run(
