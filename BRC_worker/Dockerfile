@@ -11,7 +11,7 @@ WORKDIR /usr/src/app
 RUN mkdir -p /usr/src/app/dist/src && chown -R node:node /usr/src/app
 
 # Install Git, docker in the base image.
-RUN apk add --no-cache git docker-cli docker-cli-buildx 
+RUN apk add --no-cache git docker-cli docker-cli-buildx docker-compose
 
 # Add node user to docker group
 ARG DOCKER_GID=984

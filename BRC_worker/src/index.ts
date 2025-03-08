@@ -41,7 +41,7 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
       durable: false,
     });
 
-    console.log(" [*] Waiting for messages in %s. To exit press CTRL+C", queue);
+    console.log(" [*] Waiting for %s. To exit press CTRL+C", queue);
 
     channel.consume(
       queue,
@@ -150,13 +150,27 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
             ` [x] Got installation token (IDK for what): ${installationToken}`
           );
 
+          const {
+            data: { token: brcInstallationToken },
+          } = await octokit.request(
+            `POST /app/installations/61221514/access_tokens`,
+            {
+              repositories: ["BRC"],
+              permissions: {
+                contents: "read",
+              },
+              headers: {
+                "X-GitHub-Api-Version": "2022-11-28",
+              },
+            }
+          );
+
           const cloneUrl = repository.clone_url.replace(
             "https://",
             `https://x-access-token:${installationToken}@`
           ) as string;
 
           try {
-            console.log(` [x] Git clone ${cloneUrl}`);
             const tempPath = path.join(dirname(currentDirectory), `src/temp_${containerName}`);
             deleteFolderIfExists(tempPath);
 
@@ -166,7 +180,7 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
             );
             console.log(` [x] Git clone output -> ${tempCloneOutput}`);
 
-            const brcCloneUrl = `https://x-access-token:${installationToken}@github.com/SteakFisher/BRC.git`;
+            const brcCloneUrl = `https://x-access-token:${brcInstallationToken}@github.com/thedevyashsaini/BRC.git`;
 
             console.log(` [x] Git clone BRC repo to final dir: ${brcCloneUrl}`);
             const { stdout: brcCloneOutput } = await exec(
@@ -211,7 +225,7 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
 
             console.log(" [x] Running benchmarks...");
             await exec(
-              `LEVEL=100 CONTAINER_NAME=${containerName} docker compose up`
+              `cd ${folderPath} && LEVEL=100 CONTAINER_NAME=${containerName} docker-compose up`
             );
 
             console.log(" [x] Fetching benchmark results...");

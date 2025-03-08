@@ -6,6 +6,12 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   controller:
     env_file:
@@ -17,7 +23,8 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   worker:
     user: root
@@ -31,4 +38,5 @@ services:
       NODE_ENV: production
       DOCKER_BUILDKIT: 1
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
