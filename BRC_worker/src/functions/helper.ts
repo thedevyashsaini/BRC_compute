@@ -56,8 +56,8 @@ export class CommitUpdater {
           owner: this.repository.owner.login,
           repo: this.repository.name,
           sha: this.after,
-          state: "pending",
-          description: `Holon buddy, ${process.env.worker_name} here! Lemme cook...`,
+          state: state,
+          description: description,
         });
       } catch (error) {
         console.error(
