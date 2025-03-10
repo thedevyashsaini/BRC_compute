@@ -1,5 +1,5 @@
 # Stage 1: Build Python 3.13 with No-GIL
-FROM ubuntu:latest as builder
+FROM ubuntu:latest AS builder
 
 RUN apt-get update && apt-get install -y \
     git build-essential \
