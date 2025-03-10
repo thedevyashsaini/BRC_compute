@@ -14,6 +14,7 @@ export const submissionTable = pgTable("submissions", {
     user_id: uuid().notNull().references(() => userTable.id),
     commit_hash: text().notNull(),
     commit_status: text(),
+    commit_description: text(),
     runtime: decimal(),
     parsed_json: jsonb(),
     raw_json: jsonb(),

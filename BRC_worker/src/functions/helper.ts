@@ -1,5 +1,6 @@
 // Function to delete the folder if it exists
 import * as fs from "node:fs";
+import * as path from "path";
 import dotenv from "dotenv";
 import type { Octokit } from "octokit";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -48,7 +49,7 @@ export class CommitUpdater {
 
       await tx
         .update(submissionTable)
-        .set({ commit_status: state + " | " + description })
+        .set({ commit_status: state, commit_description: description })
         .where(eq(submissionTable.id, this.submission.id));
 
       try {
@@ -68,4 +69,26 @@ export class CommitUpdater {
       }
     });
   }
+}
+
+export async function listDirRecursive(dir: string, indent = 0): Promise<string> {
+  let result = '';
+  const files = await fs.promises.readdir(dir);
+  
+  for (const file of files) {
+    if (file === '.git') continue;
+    
+    const filePath = path.join(dir, file);
+    const stats = await fs.promises.stat(filePath);
+    const indentation = ' '.repeat(indent * 2);
+    
+    if (stats.isDirectory()) {
+      result += `\t${indentation}📁 ${file}/\n`;
+      result += await listDirRecursive(filePath, indent + 1);
+    } else {
+      result += `\t${indentation}📄 ${file}\n`;
+    }
+  }
+  
+  return result;
 }

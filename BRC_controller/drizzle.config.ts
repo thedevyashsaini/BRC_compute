@@ -5,8 +5,6 @@ dotenv.config({
   path: ".env.local",
 });
 
-console.log("DATABASE_POOLER_URL", process.env.DATABASE_POOLER_URL);
-
 export default defineConfig({
   out: "./drizzle",
   schema: "./src/db/schema.ts",

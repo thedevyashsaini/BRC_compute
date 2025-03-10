@@ -4,7 +4,11 @@ import { dirname } from "path";
 import { fileURLToPath } from "node:url";
 import * as path from "path";
 import * as fs from "fs";
-import { CommitUpdater, deleteFolderIfExists } from "./functions/helper.js";
+import {
+  CommitUpdater,
+  deleteFolderIfExists,
+  listDirRecursive,
+} from "./functions/helper.js";
 import { getDB } from "./db/index.js";
 import { submissionTable, userTable } from "./db/schema.js";
 import { eq } from "drizzle-orm";
@@ -89,6 +93,7 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
               user_id: user[0]?.id || "",
               commit_hash: after,
               commit_status: "Initializing",
+              commit_description: "Request pulled by worker",
             })
             .returning();
 
@@ -171,14 +176,14 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
           ) as string;
 
           try {
-            const tempPath = path.join(dirname(currentDirectory), `src/temp_${containerName}`);
+            const tempPath = path.join(
+              dirname(currentDirectory),
+              `src/temp_${containerName}`
+            );
             deleteFolderIfExists(tempPath);
 
             console.log(` [x] Git clone user repo to temp dir: ${cloneUrl}`);
-            const { stdout: tempCloneOutput } = await exec(
-              `git clone ${cloneUrl} ${tempPath}`
-            );
-            console.log(` [x] Git clone output -> ${tempCloneOutput}`);
+            await exec(`git clone ${cloneUrl} ${tempPath}`);
 
             const brcCloneUrl = `https://x-access-token:${brcInstallationToken}@github.com/thedevyashsaini/BRC.git`;
 
@@ -186,15 +191,12 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
             const { stdout: brcCloneOutput } = await exec(
               `git clone ${brcCloneUrl} ${folderPath}`
             );
-            console.log(` [x] BRC clone output -> ${brcCloneOutput}`);
 
             console.log(` [x] Copying user src files over BRC src files`);
-            await exec(
-              `cp -rf ${tempPath}/src/* ${folderPath}/src/ 2>/dev/null || true`
-            );
+            await exec(`cp -rf ${tempPath}/src/* ${folderPath}/src/`);
 
             console.log(` [x] Cleaning up temp directory`);
-            deleteFolderIfExists(tempPath); 
+            deleteFolderIfExists(tempPath);
 
             await commitUpdater.run("pending", `Got your code, building...`);
 
@@ -215,7 +217,7 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
           } catch (error: any) {
             await commitUpdater.run(
               "error",
-              "Clone or build fked up: " + error.toString()
+              `Clone or build fked up: ${error}`
             );
             throw new Error(`Clone or build fked up: ${error}`);
           }
@@ -229,23 +231,105 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
             console.log(" [x] Build succeeded...");
 
             console.log(" [x] Running benchmarks...");
-            // Run docker-compose in detached mode
-            await exec(
-                `cd ${folderPath} && LEVEL=0.001 CONTAINER_NAME=${containerName} docker-compose up -d`
-            );
-            
-            // Stream logs until container stops
-            const { stdout, stderr } = await exec(
-                `cd ${folderPath} && docker-compose logs -f`
-            );
+            try {
+              await exec(
+                `cd ${folderPath} && LEVEL=${process.env.TEST_LEVEL} CONTAINER_NAME=${containerName} docker-compose up -d`
+              );
 
-            console.log(" [x] Benchmark logs:");
-            console.log(stdout);
+              const { stdout: containerStatus } = await exec(
+                `cd ${folderPath} && CONTAINER_NAME=${containerName} docker-compose ps --status running -q`
+              );
 
-            if (stderr) {
+              if (!containerStatus.trim()) {
+                console.error(
+                  " [-] Container failed to start or exited immediately"
+                );
+
+                const { stdout: errorLogs } = await exec(
+                  `cd ${folderPath} && CONTAINER_NAME=${containerName} docker-compose logs`
+                );
+                console.error(" [-] Container logs:", errorLogs);
+
+                throw new Error(
+                  "Container failed to start or exited immediately"
+                );
+              }
+
+              const { stdout, stderr } = await exec(
+                `cd ${folderPath} && CONTAINER_NAME=${containerName} docker-compose logs -f`
+              );
+
+              console.log(" [x] Benchmark logs:");
+              console.log(stdout);
+
+              if (stderr) {
                 console.error(" [-] Benchmark stderr:", stderr);
+              }
+
+              const { stdout: containerIds } = await exec(
+                `cd ${folderPath} && CONTAINER_NAME=${containerName} docker-compose ps -q`
+              );
+
+              if (!containerIds.trim()) {
+                console.log(
+                  " [!] No container IDs found - container may have completed already"
+                );
+
+                const { stdout: previousContainers } = await exec(
+                  `docker ps -a --filter "name=${containerName}" --format "{{.ID}}"`
+                );
+
+                if (previousContainers.trim()) {
+                  const containerId = previousContainers.trim().split("\n")[0];
+                  const { stdout: exitCode } = await exec(
+                    `docker inspect -f '{{.State.ExitCode}}' ${containerId}`
+                  );
+
+                  if (exitCode.trim() && parseInt(exitCode.trim()) !== 0) {
+                    console.error(
+                      ` [-] Container exited with non-zero code: ${exitCode.trim()}`
+                    );
+                    throw new Error(
+                      `Benchmark failed with exit code ${exitCode.trim()}`
+                    );
+                  }
+                } else {
+                  console.log(
+                    " [!] No previous containers found - assuming success"
+                  );
+                }
+              } else {
+                const { stdout: exitCode } = await exec(
+                  `cd ${folderPath} && CONTAINER_NAME=${containerName} docker-compose ps -q | xargs docker inspect -f '{{.State.ExitCode}}'`
+                );
+
+                if (exitCode.trim() && parseInt(exitCode.trim()) !== 0) {
+                  console.error(
+                    ` [-] Container exited with non-zero code: ${exitCode.trim()}`
+                  );
+                  throw new Error(
+                    `Benchmark failed with exit code ${exitCode.trim()}`
+                  );
+                }
+              }
+
+              console.log(" [x] Benchmark execution completed successfully");
+            } catch (error: unknown) {
+              console.error(" [-] Error checking container exit code:", error);
+              if (
+                error instanceof Error &&
+                !error.message.includes("requires at least 1 argument")
+              ) {
+                await commitUpdater.run(
+                  "error",
+                  `Benchmark execution failed: ${error}`
+                );
+                throw new Error(
+                  `Benchmark execution failed: ${error}`
+                );
+              }
             }
-            
+
             console.log(" [x] Fetching benchmark results...");
 
             try {
@@ -253,8 +337,10 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
               await fs.promises.unlink("./bench.json");
               await fs.promises.unlink("./bench_parsed.json");
             } catch (error: any) {
-              console.log(" [-] Failed to delete benchmark files.:");
+              console.log(" [-] Failed to delete benchmark files. Ignoring...");
             }
+
+            const outputPath = path.join(folderPath, "output");
 
             let copySuccess = {
               status: false,
@@ -262,132 +348,194 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
               bench_parsed: false,
             };
 
-            const outputPath = path.join(folderPath, 'output');
-
-            // print what all is inside the folder 
-            console.log(" [x] Output folder contents: ", await fs.promises.readdir(folderPath));
-
-            try {
-              await fs.promises.copyFile(
-                path.join(outputPath, 'status.json'),
-                './status.json'
-              );
-              copySuccess.status = true;
-              console.log(" [x] Successfully copied status.json");
-            } catch (error: any) {
-              console.error(" [-] Failed to copy status.json:", error.message);
-            }
-
-            if (!copySuccess.status) {
-              await commitUpdater.run(
-                "error",
-                "Benchmark failed: status.json not found"
-              );
-              throw new Error("Benchmark failed: status.json not found");
-            }
-
-            const status: { success: boolean; message: string } = JSON.parse(
-              await fs.promises.readFile("./status.json", "utf-8")
+            console.log(
+              " [x] Benchmark completed, copying output from container..."
             );
-            console.log(" [x] Status file content:", status);
-
-            if (!status.success) {
-              await commitUpdater.run(
-                "failure",
-                "Benchmark failed: " +
-                  status.message +
-                  ". If you feel like it's an internal error, please contact the maintainers."
-              );
-              throw new Error(`Benchmark failed: ${status.message}`);
-            }
 
             try {
-              await fs.promises.copyFile(
-                path.join(outputPath, 'bench.json'),
-                './bench.json'
-              );
-              copySuccess.bench = true;
-              console.log(" [x] Successfully copied bench.json");
-            } catch (error: any) {
-              console.log(" [-] Failed to copy bench.json:", error.message);
-            }
+              const outputPath = path.join(folderPath, "output");
+              await exec(`mkdir -p ${outputPath}`);
 
-            try {
-              await fs.promises.copyFile(
-                path.join(outputPath, 'bench_parsed.json'),
-                './bench_parsed.json'
+              const { stdout: containerId } = await exec(
+                `cd ${folderPath} && CONTAINER_NAME=${containerName} docker-compose ps -q`
               );
-              copySuccess.bench_parsed = true;
-              console.log(" [x] Successfully copied bench_parsed.json");
-            } catch (error: any) {
+
+              let containerName_new;
+
+              if (!containerId.trim()) {
+                console.log(
+                  " [!] Container may have already exited. Trying to find its name..."
+                );
+                const { stdout: containers } = await exec(
+                  `docker ps -a --filter "name=${containerName}" --format "{{.Names}}"`
+                );
+                containerName_new = containers.trim().split("\n")[0];
+
+                if (!containerName_new) {
+                  throw new Error("Unable to find container to copy from");
+                }
+              } else {
+                containerName_new = containerId.trim();
+              }
+
+              console.log(` [x] Found container: ${containerName_new}`);
+
               console.log(
-                " [-] Failed to copy bench_parsed.json:",
-                error.message
+                ` [x] Copying output from container ${containerName_new}...`
               );
-            }
+              await exec(
+                `docker cp ${containerName_new}:/usr/src/app/output/. ${outputPath}/`
+              );
 
-            if (!copySuccess.bench || !copySuccess.bench_parsed) {
+              console.log(` [x] Output copied, listing contents:`);
+              const { stdout: lsOutput } = await exec(`ls -la ${outputPath}`);
+              console.log(lsOutput);
+
+              try {
+                await fs.promises.copyFile(
+                  path.join(outputPath, "status.json"),
+                  "./status.json"
+                );
+                copySuccess.status = true;
+                console.log(" [x] Successfully copied status.json");
+              } catch (error: any) {
+                console.error(
+                  " [-] Failed to copy status.json:",
+                  error.message
+                );
+              }
+
+              if (!copySuccess.status) {
+                await commitUpdater.run(
+                  "error",
+                  "Benchmark failed: status.json not found"
+                );
+                throw new Error("Benchmark failed: status.json not found");
+              }
+
+              const status: { success: boolean; message: string } = JSON.parse(
+                await fs.promises.readFile("./status.json", "utf-8")
+              );
+              console.log(" [x] Status file content:", status);
+
+              if (!status.success) {
+                await commitUpdater.run(
+                  "failure",
+                  "Benchmark failed: " +
+                    status.message +
+                    ". If you feel like it's an internal error, please contact the maintainers."
+                );
+                throw new Error(`Benchmark failed: ${status.message}`);
+              }
+
+              try {
+                await fs.promises.copyFile(
+                  path.join(outputPath, "bench.json"),
+                  "./bench.json"
+                );
+                copySuccess.bench = true;
+                console.log(" [x] Successfully copied bench.json");
+              } catch (error: any) {
+                console.log(" [-] Failed to copy bench.json:", error.message);
+              }
+
+              try {
+                await fs.promises.copyFile(
+                  path.join(outputPath, "bench_parsed.json"),
+                  "./bench_parsed.json"
+                );
+                copySuccess.bench_parsed = true;
+                console.log(" [x] Successfully copied bench_parsed.json");
+              } catch (error: any) {
+                console.log(
+                  " [-] Failed to copy bench_parsed.json:",
+                  error.message
+                );
+              }
+
+              if (!copySuccess.bench || !copySuccess.bench_parsed) {
+                await commitUpdater.run(
+                  "error",
+                  "Benchmark failed: bench.json or bench_parsed.json not found"
+                );
+                throw new Error(
+                  "Benchmark failed: bench.json or bench_parsed.json not found"
+                );
+              }
+
+              console.log(" [x] Benchmark files copied successfully");
+
+              benchData = {
+                parsed: JSON.parse(
+                  await fs.promises.readFile("./bench_parsed.json", "utf-8")
+                )[0],
+                raw: JSON.parse(
+                  await fs.promises.readFile("./bench_parsed.json", "utf-8")
+                ),
+              };
+
+              console.log(" [x] Parsed benchmark Data: ", benchData.parsed);
+
+              console.log(" [x] Stopping & removing container...");
+
+              deleteFolderIfExists(folderPath);
+
+              await exec(`docker rm -f temp_${containerName}`);
+            } catch (err: unknown) {
+              console.error(` [-] Error copying from container: ${err}`);
               await commitUpdater.run(
                 "error",
-                "Benchmark failed: bench.json or bench_parsed.json not found"
+                `Test and benchmark fked up: ${err}`
               );
-              throw new Error(
-                "Benchmark failed: bench.json or bench_parsed.json not found"
-              );
+              throw new Error(`Failed to retrieve benchmark results: ${err}`);
             }
-
-            console.log(" [x] Benchmark files copied successfully");
-
-            benchData = {
-              parsed: JSON.parse(
-                await fs.promises.readFile("./bench_parsed.json", "utf-8")
-              ),
-              raw: JSON.parse(
-                await fs.promises.readFile("./bench_parsed.json", "utf-8")
-              ),
-            };
-
-            console.log(" [x] Parsed benchmark Data: ", benchData.parsed);
-
-            console.log(" [x] Stopping & removing container...");
-
-            deleteFolderIfExists(folderPath); 
-            await exec(`docker rm -f temp_${containerName}`);
-          } catch (error: any) {
+          } catch (error: unknown) {
             await commitUpdater.run(
               "error",
-              "Test and benchmark failed: " + error.toString()
+              `Test and benchmark fked up: ${error}`
             );
             throw new Error(`Test and benchmark fked up: ${error}`);
           }
 
-          if (!benchData || !benchData.parsed || !benchData.raw) { 
+          try {
+            if (!benchData || !benchData.parsed || !benchData.raw) {
+              await commitUpdater.run(
+                "error",
+                "That mf benchmark data ran away somewhere"
+              );
+              throw new Error("That mf benchmark data ran away somewhere");
+            }
+
+            const { parsed: parsed_bench, raw: raw_bench } = benchData;
+
+            await db
+              .update(submissionTable)
+              .set({
+                commit_status: `success`,
+                commit_description: `IDK how, but the whole thing workd, runtime: ${Math.floor((parsed_bench.mean / 1000) * 1000) / 1000} ms.`,
+                runtime: parsed_bench.mean.toString(),
+                parsed_json: parsed_bench,
+                raw_json: raw_bench,
+              })
+              .where(eq(submissionTable.id, submission?.id || ""));
+
+            await octokit.rest.repos.createCommitStatus({
+              owner: repository.owner.login,
+              repo: repository.name,
+              sha: after,
+              state: "success",
+              description: `IDK how, but the whole thing workd, runtime: ${Math.floor((parsed_bench.mean / 1000) * 1000) / 1000} ms.`,
+            });
+
+          } catch (error) {
             await commitUpdater.run(
               "error",
-              "That mf benchmark data ran away somewhere"
+              `Failed to finalize process: ${error}`
             );
-            throw new Error("That mf benchmark data ran away somewhere");
+            throw new Error(`Failed to finalize process: ${error}`);
           }
 
-          const { parsed: parsed_bench, raw: raw_bench } = benchData;
-
-          await db
-            .update(submissionTable)
-            .set({
-              commit_status: `success | IDK how, but the whole thing workd, runtime: ${parsed_bench.mean} ms.`,
-              runtime: parsed_bench.mean.toString(),
-              parsed_json: parsed_bench,
-              raw_json: raw_bench,
-            })
-            .where(eq(submissionTable.id, submission?.id || ""));
-
-          await octokit.rest.repos.createCommitStatus({
-            owner: repository.owner.login,
-            repo: repository.name,
-            sha: after,
-            state: "success",
-            description: `IDK how, but the whole thing workd, runtime: ${parsed_bench.mean} ms.`,
-          });
+          console.log(" [x] Process completed successfully... Slave Can Sleep!");
           channel.ack(msg!);
           return;
         } catch (error) {

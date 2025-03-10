@@ -1,6 +1,7 @@
 mod benchmark;
 mod testcase;
 
+use core::panic;
 use std::io::BufRead;
 use std::process::Command;
 
@@ -30,6 +31,39 @@ async fn write_status(success: bool, message: &str) -> std::io::Result<()> {
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    println!("Files and directories in current directory:");
+
+    #[allow(dead_code)]
+    fn print_dir_contents(path: &std::path::Path, indent: usize) -> std::io::Result<()> {
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            let path = entry.path();
+            
+            if path.is_dir() && path.file_name().unwrap() == ".git" {
+                continue;
+            }
+            
+            let spaces = " ".repeat(indent);
+            if path.is_dir() {
+                println!("{}└─ 📁 {}/", spaces, path.file_name().unwrap().to_string_lossy());
+                print_dir_contents(&path, indent + 2)?;
+            } else {
+                println!("{}└─ 📄 {}", spaces, path.file_name().unwrap().to_string_lossy());
+            }
+        }
+        Ok(())
+    }
+
+    // let current_dir = std::env::current_dir()?;
+    // print_dir_contents(&current_dir, 0)?;
+    // println!();
+
+    let main_py_path = std::path::Path::new("src/main.py");
+    if !main_py_path.exists() {
+        write_status(false, "main.py does not exist").await?;
+        panic!("main.py does not exist");
+    }
+
     let level: f32 = match std::env::var("LEVEL")
         .unwrap_or_else(|_| "10".to_string())
         .parse()
