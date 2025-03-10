@@ -481,6 +481,11 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
               deleteFolderIfExists(folderPath);
 
               await exec(`docker rm -f temp_${containerName}`);
+
+              console.log(" [x] Container stopped & removed");
+              console.log(" [x] Deleting docker image");
+
+              await exec(`docker rmi ${containerName}`);
             } catch (err: unknown) {
               console.error(` [-] Error copying from container: ${err}`);
               await commitUpdater.run(
