@@ -6,7 +6,7 @@ use std::io::BufRead;
 use std::process::Command;
 
 use tokio::process::{Command as TokioCommand};
-use tokio::time::{sleep, Duration};
+use tokio::time::{sleep, Duration, timeout};
 
 const TESTCASE_PATH: &str = "testcases";
 
@@ -241,19 +241,26 @@ async fn main() -> std::io::Result<()> {
         .spawn()
         .expect("Failed to run main.py! Surely this mf fked up something.");
 
-    let five_minute_timer = sleep(Duration::from_secs(2 * 60));
-
-    let child_task = async {
+    // Timeout wrapper
+    match timeout(Duration::from_secs( 300), async {
         let status = child.wait().await.expect("Failed to wait for process");
         println!("Process exited with: {}", status);
         status
-    };
-
-    tokio::select! {
-        _ = five_minute_timer => {
+    }).await {
+        Ok(status) => {
+            // Process finished before timeout
+            if !status.success() {
+                eprintln!("Python process failed with non-zero exit code: {}", status);
+                std::process::exit(1);
+            }
+            println!("Process completed successfully");
+        }
+        Err(_) => {
+            // Timeout triggered
             println!("Timer won the race! Process took too long, killing it.");
+            // Fuck it.. if the timer wins the race panic and fuck everyone
+            panic!("Timer won the race.. we panicking");
 
-            // Kill the process & wait for it to fully terminate
             if let Err(e) = child.kill().await {
                 eprintln!("Failed to kill process: {}", e);
             } else {
@@ -262,17 +269,8 @@ async fn main() -> std::io::Result<()> {
 
             eprintln!("Process took too long! Exiting...");
             std::process::exit(1);
-        },
-        status = child_task => {
-            println!("Process completed with status: {}", status);
-            if !status.success() {
-                eprintln!("Python process failed with non-zero exit code: {}", status);
-                std::process::exit(1);
-            }
-        },
+        }
     }
-
-    println!("Process completed successfully");
 
     // let status = match child.wait() {
     //     Ok(status) => status,
