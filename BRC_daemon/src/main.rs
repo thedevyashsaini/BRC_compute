@@ -5,6 +5,9 @@ use core::panic;
 use std::io::BufRead;
 use std::process::Command;
 
+use tokio::process::{Command as TokioCommand};
+use tokio::time::{sleep, Duration};
+
 const TESTCASE_PATH: &str = "testcases";
 
 async fn write_status(success: bool, message: &str) -> std::io::Result<()> {
@@ -229,39 +232,73 @@ async fn main() -> std::io::Result<()> {
 
     println!("Running unbenchmarked test...");
 
-    let mut child: std::process::Child = Command::new("python")
+    // Start the Python process
+    let mut child = TokioCommand::new("python")
         .args(["-X", "gil=0", "main.py"])
-        .current_dir("src") 
+        .current_dir("src")
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
         .spawn()
         .expect("Failed to run main.py! Surely this mf fked up something.");
 
-    let status = match child.wait() {
-        Ok(status) => status,
-        Err(e) => {
-            tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current().block_on(async {
-                    write_status(false, &format!("Failed to wait for Python process: {}", e))
-                        .await
-                        .unwrap();
-                    panic!("Failed to wait for Python process: {}", e);
-                })
-            });
-            std::process::exit(1);
-        }
+    let five_minute_timer = sleep(Duration::from_secs(2 * 60));
+
+    let child_task = async {
+        let status = child.wait().await.expect("Failed to wait for process");
+        println!("Process exited with: {}", status);
+        status
     };
 
-    if !status.success() {
-        write_status(
-            false,
-            &format!("Python process exited with non-zero status: {}", status),
-        )
-        .await?;
-        panic!("Python process exited with non-zero status: {}", status);
+    tokio::select! {
+        _ = five_minute_timer => {
+            println!("Timer won the race! Process took too long, killing it.");
+
+            // Kill the process & wait for it to fully terminate
+            if let Err(e) = child.kill().await {
+                eprintln!("Failed to kill process: {}", e);
+            } else {
+                let _ = child.wait().await; // Ensure it exits
+            }
+
+            eprintln!("Process took too long! Exiting...");
+            std::process::exit(1);
+        },
+        status = child_task => {
+            println!("Process completed with status: {}", status);
+            if !status.success() {
+                eprintln!("Python process failed with non-zero exit code: {}", status);
+                std::process::exit(1);
+            }
+        },
     }
 
-    println!("Process exited: {}", status);
+    println!("Process completed successfully");
+
+    // let status = match child.wait() {
+    //     Ok(status) => status,
+    //     Err(e) => {
+    //         tokio::task::block_in_place(|| {
+    //             tokio::runtime::Handle::current().block_on(async {
+    //                 write_status(false, &format!("Failed to wait for Python process: {}", e))
+    //                     .await
+    //                     .unwrap();
+    //                 panic!("Failed to wait for Python process: {}", e);
+    //             })
+    //         });
+    //         std::process::exit(1);
+    //     }
+    // };
+
+    // if !status.success() {
+    //     write_status(
+    //         false,
+    //         &format!("Python process exited with non-zero status: {}", status),
+    //     )
+    //         .await?;
+    //     panic!("Python process exited with non-zero status: {}", status);
+    // }
+    //
+    // println!("Process exited: {}", status);
 
     println!("Testing output...");
     
