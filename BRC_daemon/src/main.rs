@@ -5,6 +5,9 @@ use core::panic;
 use std::io::BufRead;
 use std::process::Command;
 
+use tokio::process::{Command as TokioCommand};
+use tokio::time::{sleep, Duration, timeout};
+
 const TESTCASE_PATH: &str = "testcases";
 
 async fn write_status(success: bool, message: &str) -> std::io::Result<()> {
@@ -229,39 +232,71 @@ async fn main() -> std::io::Result<()> {
 
     println!("Running unbenchmarked test...");
 
-    let mut child: std::process::Child = Command::new("python")
+    // Start the Python process
+    let mut child = TokioCommand::new("python")
         .args(["-X", "gil=0", "main.py"])
-        .current_dir("src") 
+        .current_dir("src")
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
         .spawn()
         .expect("Failed to run main.py! Surely this mf fked up something.");
 
-    let status = match child.wait() {
-        Ok(status) => status,
-        Err(e) => {
-            tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current().block_on(async {
-                    write_status(false, &format!("Failed to wait for Python process: {}", e))
-                        .await
-                        .unwrap();
-                    panic!("Failed to wait for Python process: {}", e);
-                })
-            });
+    // Timeout wrapper
+    match timeout(Duration::from_secs( 300), async {
+        let status = child.wait().await.expect("Failed to wait for process");
+        println!("Process exited with: {}", status);
+        status
+    }).await {
+        Ok(status) => {
+            // Process finished before timeout
+            if !status.success() {
+                eprintln!("Python process failed with non-zero exit code: {}", status);
+                std::process::exit(1);
+            }
+            println!("Process completed successfully");
+        }
+        Err(_) => {
+            // Timeout triggered
+            println!("Timer won the race! Process took too long, killing it.");
+            // Fuck it.. if the timer wins the race panic and fuck everyone
+            panic!("Timer won the race.. we panicking");
+
+            if let Err(e) = child.kill().await {
+                eprintln!("Failed to kill process: {}", e);
+            } else {
+                let _ = child.wait().await; // Ensure it exits
+            }
+
+            eprintln!("Process took too long! Exiting...");
             std::process::exit(1);
         }
-    };
-
-    if !status.success() {
-        write_status(
-            false,
-            &format!("Python process exited with non-zero status: {}", status),
-        )
-        .await?;
-        panic!("Python process exited with non-zero status: {}", status);
     }
 
-    println!("Process exited: {}", status);
+    // let status = match child.wait() {
+    //     Ok(status) => status,
+    //     Err(e) => {
+    //         tokio::task::block_in_place(|| {
+    //             tokio::runtime::Handle::current().block_on(async {
+    //                 write_status(false, &format!("Failed to wait for Python process: {}", e))
+    //                     .await
+    //                     .unwrap();
+    //                 panic!("Failed to wait for Python process: {}", e);
+    //             })
+    //         });
+    //         std::process::exit(1);
+    //     }
+    // };
+
+    // if !status.success() {
+    //     write_status(
+    //         false,
+    //         &format!("Python process exited with non-zero status: {}", status),
+    //     )
+    //         .await?;
+    //     panic!("Python process exited with non-zero status: {}", status);
+    // }
+    //
+    // println!("Process exited: {}", status);
 
     println!("Testing output...");
     
