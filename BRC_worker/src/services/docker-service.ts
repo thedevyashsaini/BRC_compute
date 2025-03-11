@@ -127,6 +127,7 @@ export class DockerService {
   async cleanup(containerName: string): Promise<void> {
     try {
       await exec(`docker rm -f temp_${containerName}`);
+      await exec(`docker rmi ${containerName}`);
     } catch (err) {
       console.error(`Failed to remove container: ${err}`);
     }
