@@ -31,9 +31,11 @@ export class SubmissionProcessor {
 
     const octokit = await this.githubService.getOctokit(installation.id);
 
-    if (await this.githubService.getLatestCommit(octokit, repository) !== after) {
-      console.error(" [-] Commit already processed, skipping...");
-      return;
+    if (from === "push") {
+      if (await this.githubService.getLatestCommit(octokit, repository) !== after) {
+        console.error(" [-] Commit already processed, skipping...");
+        return;
+      }
     }
 
     // Find the user for this repo
