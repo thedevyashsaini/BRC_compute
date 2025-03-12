@@ -1,10 +1,10 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { type BenchmarkStats } from "../models/benchmark-result.js";
+import type { BenchmarkRawResult, BenchmarkStats } from "../models/benchmark-result.js";
 
 export interface BenchmarkResult {
   parsed: BenchmarkStats;
-  raw: Record<string, any>;
+  raw: BenchmarkRawResult;
   status: {
     success: boolean;
     message: string;

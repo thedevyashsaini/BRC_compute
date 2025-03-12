@@ -1,15 +1,17 @@
 import { getDB } from "../db/index.js";
 import { submissionTable, userTable } from "../db/schema.js";
+import { type MessageData } from "../models/message.js";
 import { eq } from "drizzle-orm";
 import { GitHubService } from "../services/github-service.js";
 import { DockerService } from "../services/docker-service.js";
 import { BenchmarkService } from "../services/benchmark-service.js";
 import { Submission } from "../models/submission.js";
 import { deleteFolderIfExists } from "../utils/helper.js";
-import { TEST_LEVEL } from "../config/app-config.js";
+import { TEST_LEVEL, UPGRADE_LEVEL } from "../config/app-config.js";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 export class SubmissionProcessor {
-  private db: any;
+  private db!: PostgresJsDatabase<any>;
   private githubService: GitHubService;
   private dockerService: DockerService;
   private benchmarkService: BenchmarkService;
@@ -20,18 +22,33 @@ export class SubmissionProcessor {
     this.benchmarkService = new BenchmarkService();
   }
 
-  async process(data: any): Promise<void> {
+  async process(from: "push" | "upgrade", data: MessageData): Promise<void> {
     this.db = await getDB();
 
     const { repository, installation, after } = data;
 
     console.log(" [x] Processing submission for repository:", repository.name);
 
+    const octokit = await this.githubService.getOctokit(installation.id);
+
+    if (await this.githubService.getLatestCommit(octokit, repository) !== after) {
+      console.error(" [-] Commit already processed, skipping...");
+      return;
+    }
+
     // Find the user for this repo
     const user = await this.findUser(repository.id);
 
+    if (!user) {
+      throw new Error("User not found for repository");
+    }
+
     // Create a submission record
-    const submission = await this.createSubmission(user.id, after);
+    const submission = await this.createSubmission(user.id, after, from);
+    
+    if (!submission) {
+      throw new Error("Failed to create submission");
+    }
 
     // Initialize the submission handler
     const submissionHandler = new Submission(
@@ -63,7 +80,7 @@ export class SubmissionProcessor {
       await this.dockerService.runBenchmarks(
         submissionHandler.containerName,
         submissionHandler.getFolderPath(),
-        TEST_LEVEL || "1"
+        from === "push" ? (TEST_LEVEL || "25") : ( UPGRADE_LEVEL || "50")
       );
 
       // Get benchmark results
@@ -92,7 +109,7 @@ export class SubmissionProcessor {
 
       // Update commit status
       await this.githubService.updateCommitStatus(
-        await this.githubService.getOctokit(installation.id),
+        octokit,
         repository,
         after,
         "success",
@@ -133,7 +150,7 @@ export class SubmissionProcessor {
     return user[0];
   }
 
-  private async createSubmission(userId: string, commitHash: string) {
+  private async createSubmission(userId: string, commitHash: string, from: "push" | "upgrade") {
     const submissions = await this.db
       .insert(submissionTable)
       .values({
@@ -141,6 +158,7 @@ export class SubmissionProcessor {
         commit_hash: commitHash,
         commit_status: "Initializing",
         commit_description: "Request pulled by worker",
+        is_upgrade: from === "upgrade",
       })
       .returning();
 

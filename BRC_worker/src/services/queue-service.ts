@@ -1,9 +1,10 @@
 import amqp from "amqplib/callback_api.js";
 import { QUEUE_NAME, RABBITMQ_URL } from "../config/app-config.js";
+import type { MessageData } from "../models/message.js";
 
 export interface QueueMessage {
   from: string;
-  data: any;
+  data: MessageData;
 }
 
 export type MessageHandler = (
