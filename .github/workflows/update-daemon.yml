@@ -7,7 +7,7 @@ on:
 
 jobs:
   update-daemon:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2204
     steps:
       # Checkout BRC_compute repository
       - name: Checkout BRC_compute repository
