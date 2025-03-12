@@ -325,7 +325,7 @@ app.post("/upgrade", async (req: Request, res: Response): Promise<void> => {
 
   try {
     // Get the installation for the specified repository
-    const installation = await githubApp.octokit.request('GET /repos/{owner}/{repo}/installation', {
+    const {data: installation} = await githubApp.octokit.request('GET /repos/{owner}/{repo}/installation', {
       owner,
       repo,
       headers: {
@@ -333,8 +333,10 @@ app.post("/upgrade", async (req: Request, res: Response): Promise<void> => {
       }
     });
 
+    console.log(installation)
+
     // Get an authenticated octokit client for this installation
-    const octokit = await githubApp.getInstallationOctokit(installation.data.id);
+    const octokit = await githubApp.getInstallationOctokit(installation.id);
 
     const { data: repository } = await octokit.rest.repos.get({
       owner,
@@ -347,9 +349,10 @@ app.post("/upgrade", async (req: Request, res: Response): Promise<void> => {
       repo,
       sha: commitHash,
       state: "pending",
-      description: "Processing upgrade request...",
-      context: "BRC/upgrader"
+      description: "Processing upgrade request..."
     });
+    repository.owner.name = owner;
+    console.log(repository)
 
     // Send the upgrade request to the queue
     amqp.connect("amqp://rabbitmq", function (error0: any, connection: any) {
