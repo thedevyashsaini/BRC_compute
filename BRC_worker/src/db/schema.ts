@@ -1,16 +1,9 @@
-import { sql } from "drizzle-orm";
-import {
-  decimal,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-  boolean,
-} from "drizzle-orm/pg-core";
+import {sql} from "drizzle-orm";
+import {decimal, jsonb, pgTable, text, timestamp, uuid, boolean, bigint} from "drizzle-orm/pg-core";
 
 export const userTable = pgTable("users", {
   id: uuid().primaryKey().defaultRandom(),
+  github_user_id: bigint({mode: "number"}).notNull().unique(),
   username: text().notNull().unique(),
   email: text().notNull().unique(),
   github_repo: text().notNull(),
@@ -19,9 +12,7 @@ export const userTable = pgTable("users", {
 
 export const submissionTable = pgTable("submissions", {
   id: uuid().primaryKey().defaultRandom(),
-  user_id: uuid()
-    .notNull()
-    .references(() => userTable.id),
+  user_id: uuid().notNull().references(() => userTable.id),
   commit_hash: text().notNull(),
   commit_status: text(),
   commit_description: text(),
@@ -29,9 +20,7 @@ export const submissionTable = pgTable("submissions", {
   parsed_json: jsonb(),
   raw_json: jsonb(),
   is_upgrade: boolean().default(false),
-  timestamp: timestamp()
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
+  timestamp: timestamp().notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
 export type InsertUser = typeof userTable.$inferInsert;

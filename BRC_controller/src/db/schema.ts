@@ -1,8 +1,9 @@
-import { sql } from "drizzle-orm";
-import {decimal, jsonb, pgTable, text, timestamp, uuid, boolean} from "drizzle-orm/pg-core";
+import {sql} from "drizzle-orm";
+import {decimal, jsonb, pgTable, text, timestamp, uuid, boolean, bigint} from "drizzle-orm/pg-core";
 
 export const userTable = pgTable("users", {
     id: uuid().primaryKey().defaultRandom(),
+    github_user_id: bigint({mode: "number"}).notNull().unique(),
     username: text().notNull().unique(),
     email: text().notNull().unique(),
     github_repo: text().notNull(),
