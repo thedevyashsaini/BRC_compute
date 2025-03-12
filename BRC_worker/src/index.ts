@@ -15,7 +15,19 @@ setupQueueConsumer(async (message, ack, nack) => {
       return;
     }
 
-    await processor.process(message.data);
+    if (message.from !== "push" && message.from !== "upgrade") {
+      console.error("Invalid task source");
+      nack();
+      return;
+    }
+
+    if (!message.data.repository || !message.data.installation || !message.data.after) {
+      console.error(" [-] Invalid task data");
+      nack();
+      return;
+    }
+
+    await processor.process(message.from, message.data);
     ack();
   } catch (error) {
     console.error(" [-] Processing error:", error);

@@ -6,6 +6,7 @@ export const QUEUE_NAME = "proposal";
 export const RABBITMQ_URL = "amqp://rabbitmq";
 export const WORKER_NAME = process.env.WORKER_NAME;
 export const TEST_LEVEL = process.env.TEST_LEVEL;
+export const UPGRADE_LEVEL = process.env.UPGRADE_LEVEL;
 export const DATABASE_POOLER_URL = process.env.DATABASE_POOLER_URL;
 export const BASE_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 

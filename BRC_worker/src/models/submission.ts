@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import { GitHubService } from "../services/github-service.js";
 import { deleteFolderIfExists } from "../utils/helper.js";
 import { BASE_DIR, WORKER_NAME } from "../config/app-config.js";
+import type { MessageRepo } from "./message.js";
 
 const exec = promisify(execCallback);
 
@@ -21,18 +22,18 @@ export class Submission {
   private githubService: GitHubService;
 
   constructor(
-    private repository: any,
+    private repository: MessageRepo,
     private installationId: number,
     private commitSha: string,
     private dbSubmission: any,
-    private db: any
+    private db: PostgresJsDatabase<any>
   ) {
     this.githubService = new GitHubService();
     this.folderPath = path.join(BASE_DIR, `src/${this.containerName}`);
   }
 
   get containerName(): string {
-    return `${this.repository.owner.name}_${this.repository.name}`.toLowerCase();
+    return `${this.repository.owner.login}_${this.repository.name}`.toLowerCase();
   }
 
   async initialize(): Promise<void> {
@@ -92,14 +93,14 @@ export class Submission {
 export class CommitUpdater {
   private octokit: Octokit;
   private db: PostgresJsDatabase<any>;
-  private repository: Record<string, any>;
+  private repository: MessageRepo;
   private after: string;
   private submission: SubmissionTable | undefined;
 
   constructor(
     octokit: Octokit,
     db: PostgresJsDatabase<any>,
-    repository: Record<string, any>,
+    repository: MessageRepo,
     after: string,
     submission: SubmissionTable | undefined
   ) {
