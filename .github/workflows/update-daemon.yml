@@ -1,0 +1,71 @@
+name: Update Daemon Executable
+
+on:
+  push:
+    paths:
+      - 'BRC_daemon/**'
+
+jobs:
+  update-daemon:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout BRC_compute repository
+      - name: Checkout BRC_compute repository
+        uses: actions/checkout@v3
+
+      # Setup Rust toolchain
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      # Build the daemon from BRC_daemon folder
+      - name: Build daemon
+        run: cargo build --release --manifest-path=BRC_daemon/Cargo.toml
+
+      # Clone the SteakFisher/BRC repository
+      - name: Clone SteakFisher/BRC repository
+        env:
+          TDS_PAT: ${{ secrets.TDS_PAT }}
+        run: |
+          git clone https://x-access-token:${TDS_PAT}@github.com/SteakFisher/BRC.git updated_repo
+
+      # Replace the executable in SteakFisher/BRC with the newly built daemon
+      - name: Update daemon in SteakFisher/BRC
+        run: |
+          cp BRC_daemon/target/release/daemon updated_repo/daemon
+
+      # Commit and push changes to SteakFisher/BRC
+      - name: Commit and push to SteakFisher/BRC
+        working-directory: updated_repo
+        env:
+          TDS_PAT: ${{ secrets.TDS_PAT }}
+        run: |
+          git config user.name "TDS GitHub Action"
+          git config user.email "action@github.com"
+          git add daemon
+          git commit -m "Daemon Update #${{ github.sha }}"
+          git push origin HEAD
+
+      # Directly update fork (thedevyashsaini/BRC) in a similar way
+      - name: Clone your fork of BRC
+        env:
+          TDS_PAT: ${{ secrets.TDS_PAT }}
+        run: |
+          git clone https://x-access-token:${TDS_PAT}@github.com/thedevyashsaini/BRC.git fork_repo
+
+      - name: Update daemon in your fork
+        run: |
+          cp BRC_daemon/target/release/daemon fork_repo/daemon
+
+      - name: Commit and push to your fork
+        working-directory: fork_repo
+        env:
+          TDS_PAT: ${{ secrets.TDS_PAT }}
+        run: |
+          git config user.name "TDS GitHub Action"
+          git config user.email "action@github.com"
+          git add daemon
+          git commit -m "Daemon Update #${{ github.sha }}"
+          git push origin HEAD
