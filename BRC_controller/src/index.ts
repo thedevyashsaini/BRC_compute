@@ -51,7 +51,7 @@ app.get("/test", async (req: Request, res: Response) => {
         });
 
         let data = {
-          from: "controller",
+          from: "push",
           data: {
             ref: "refs/heads/master",
             repository: {
@@ -293,7 +293,7 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
           queue,
           Buffer.from(
             JSON.stringify({
-              from: "controller",
+              from: "push",
               data: { ref, repository, installation, after },
             })
           )
@@ -307,6 +307,84 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error("Unexpected error:", error);
     res.status(500).send("An unexpected error occurred");
+  }
+});
+
+app.post("/upgrade", async (req: Request, res: Response): Promise<void> => {
+  if (req.headers.authorization !== process.env.UPGRADE_SECRET) {
+    res.status(401).send("Unauthorized");
+    return;
+  }
+
+  const { owner, repo, commitHash } = req.body;
+
+  if (!owner || !repo || !commitHash) {
+    res.status(400).send("Missing required parameters: owner, repo, commitHash");
+    return;
+  }
+
+  try {
+    // Get the installation for the specified repository
+    const installation = await githubApp.octokit.request('GET /repos/{owner}/{repo}/installation', {
+      owner,
+      repo,
+      headers: {
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+    });
+
+    // Get an authenticated octokit client for this installation
+    const octokit = await githubApp.getInstallationOctokit(installation.data.id);
+
+    const { data: repository } = await octokit.rest.repos.get({
+      owner,
+      repo
+    })
+
+    // Use the octokit client to create a commit status
+    await octokit.rest.repos.createCommitStatus({
+      owner,
+      repo,
+      sha: commitHash,
+      state: "pending",
+      description: "Processing upgrade request...",
+      context: "BRC/upgrader"
+    });
+
+    // Send the upgrade request to the queue
+    amqp.connect("amqp://rabbitmq", function (error0: any, connection: any) {
+      if (error0) {
+        throw error0;
+        return;
+      }
+      connection.createChannel(function (error1: any, channel: any) {
+        if (error1) {
+          throw error1;
+          return;
+        }
+        var queue = "proposal";
+
+        channel.assertQueue(queue, {
+          durable: false,
+        });
+
+        channel.sendToQueue(
+          queue,
+          Buffer.from(
+            JSON.stringify({
+              from: "upgrade",
+              data: { repository, installation, after: commitHash },
+            })
+          )
+        );
+        console.log(" [x] Sent upgrade request for", owner, repo, commitHash);
+      });
+    });
+
+    res.status(200).send("Upgrade request accepted");
+  } catch (error: any) {
+    console.error("Error processing upgrade request:", error);
+    res.status(500).send(`Error: ${error.message || "Unknown error"}`);
   }
 });
 
