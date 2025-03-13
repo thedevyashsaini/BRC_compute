@@ -38,10 +38,7 @@ app.use(
   })
 );
 
-const privateKey = Buffer.from(
-  process.env.GITHUB_PRIVATE_KEY!,
-  "base64"
-).toString("utf8");
+const privateKey = process.env.GITHUB_PRIVATE_KEY!.split(String.raw`\n`).join('\n')
 
 const githubApp = new App({
   appId: process.env.GITHUB_APP_ID!,
