@@ -11,14 +11,11 @@ export const DATABASE_POOLER_URL = process.env.DATABASE_POOLER_URL;
 export const BASE_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 
 export function createGitHubApp() {
-  const privateKey = Buffer.from(
-    process.env.GITHUB_PRIVATE_KEY!,
-    "base64"
-  ).toString("utf8");
-
+  const privateKey = process.env.GITHUB_PRIVATE_KEY!.split(String.raw`\n`).join('\n')
+  console.log(privateKey);
   return new App({
     appId: process.env.GITHUB_APP_ID!,
-    privateKey: privateKey,
+    privateKey,
   });
 }
 

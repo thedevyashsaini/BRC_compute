@@ -33,10 +33,18 @@ export class GitHubService {
   }
 
   async getBrcToken() {
-    const octokit = await this.getOctokit(BRC_INSTALLATION_ID);
+    const {data: installation} = await this.app.octokit.request('GET /repos/{owner}/{repo}/installation', {
+      owner: "thedevyashsaini",
+      repo: "BRC",
+      headers: {
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+    });
+
+    const octokit = await this.getOctokit(installation.id);
 
     const { data } = await octokit.request(
-      `POST /app/installations/${BRC_INSTALLATION_ID}/access_tokens`,
+      `POST /app/installations/${installation.id}/access_tokens`,
       {
         repositories: ["BRC"],
         permissions: {
