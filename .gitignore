@@ -6,3 +6,8 @@
 /.idea/vcs.xml
 /.idea
 /BRC_controller/src/.index.ts.swp
+
+/BRC_terraform/.terraform
+/BRC_terraform/terraform.tfstate
+/BRC_terraform/terraform.tfstate.backup
+/BRC_terraform/.terraform.lock.hcl
