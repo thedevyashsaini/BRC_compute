@@ -1,0 +1,27 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: rabbitmq-worker-push
+spec:
+  scaleTargetRef:
+    name: worker-push
+  triggers:
+    - type: rabbitmq
+      metadata:
+        queueName: "proposal"
+        host: "amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@rabbitmq:5672/"
+      authenticationRef:
+        name: rabbitmq-trigger-auth
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: rabbitmq-trigger-auth
+spec:
+  secretTargetRef:
+    - parameter: RABBITMQ_USER
+      name: rabbitmq-credentials
+      key: username
+    - parameter: RABBITMQ_PASSWORD
+      name: rabbitmq-credentials
+      key: password
