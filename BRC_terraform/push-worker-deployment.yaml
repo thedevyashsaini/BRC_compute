@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: push-worker-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: push-worker-app
+  template:
+    metadata:
+      labels:
+        app: push-worker-app
+    spec:
+      nodeSelector:
+        agentpool: pushpool
+      containers:
+        - name: push-worker
+          image: steakfisher1/brc-worker:latest
+          securityContext:
+            privileged: true
+          env:
+            - name: DOCKER_HOST
+              value: unix:///var/run/docker.sock
+          envFrom:
+            - configMapRef:
+                name: push-worker-config
+            - secretRef:
+                name: push-worker-secret
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: docker-socket
+              mountPath: /var/run
+
+        - name: dind
+          image: docker:dind
+          securityContext:
+            privileged: true
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""  # Disable TLS completely
+          args:
+            - "--host=tcp://0.0.0.0:2375"
+            - "--storage-driver=overlay2"
+          volumeMounts:
+            - name: docker-socket
+              mountPath: /var/run
+
+      volumes:
+        - name: docker-socket
+          emptyDir: { }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: push-worker-service
+spec:
+  selector:
+    app: push-worker-app
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP

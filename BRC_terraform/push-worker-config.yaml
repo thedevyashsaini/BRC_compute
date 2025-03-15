@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: push-worker-config
+data:
+  NODE_ENV: "production"
+  DOCKER_BUILDKIT: "1"
