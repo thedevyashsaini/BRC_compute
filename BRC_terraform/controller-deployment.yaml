@@ -15,19 +15,6 @@ spec:
       nodeSelector:
         agentpool: controller
       containers:
-        - name: rabbitmq
-          image: rabbitmq:4.0-management
-          ports:
-            - containerPort: 5672
-            - containerPort: 15672
-          livenessProbe:
-            tcpSocket:
-              port: 5672
-            initialDelaySeconds: 30
-            periodSeconds: 15
-
-
-
         - name: controller
           image: steakfisher1/brc-controller:latest
           envFrom:
@@ -37,7 +24,6 @@ spec:
                 name: controller-secret
           ports:
             - containerPort: 5000
-
           readinessProbe:
             tcpSocket:
               port: 5000

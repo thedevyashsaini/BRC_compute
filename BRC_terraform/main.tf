@@ -57,7 +57,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 }
 
-# Additional Node Pool (1 Node, 1 Pod, 2 Containers)
+# Additional Node Pool (1 Node, 2 Pods)
 resource "azurerm_kubernetes_cluster_node_pool" "fixed_pool" {
   name                  = "controller"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
