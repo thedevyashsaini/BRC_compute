@@ -43,7 +43,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   name                = "brc-cluster"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = "exampleaks"
+  dns_prefix          = "brcaks"
 
   default_node_pool {
     name                = "system"
@@ -57,7 +57,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 }
 
-# Additional Node Pool (1 Node, 1 Pod, 2 Containers)
+# Additional Node Pool (1 Node, 2 Pods)
 resource "azurerm_kubernetes_cluster_node_pool" "fixed_pool" {
   name                  = "controller"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
@@ -66,24 +66,24 @@ resource "azurerm_kubernetes_cluster_node_pool" "fixed_pool" {
   mode                  = "User"
 }
 
-# Autoscaling Node Pool (1-5 Nodes)
-resource "azurerm_kubernetes_cluster_node_pool" "autoscaling_1" {
-  name                  = "pushpool"
-  kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
-  vm_size               = "Standard_B2s_v2"
-  auto_scaling_enabled   = true
-  min_count             = 1
-  max_count             = 5
-  mode                  = "User"
-}
-
-# Autoscaling Node Pool (1-3 Nodes)
-resource "azurerm_kubernetes_cluster_node_pool" "autoscaling_2" {
-  name                  = "upgradepool"
-  kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
-  vm_size               = "Standard_B4s_v2"
-  auto_scaling_enabled   = true
-  min_count             = 1
-  max_count             = 3
-  mode                  = "User"
-}
+# # Autoscaling Node Pool (1-5 Nodes)
+# resource "azurerm_kubernetes_cluster_node_pool" "autoscaling_1" {
+#   name                  = "pushpool"
+#   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
+#   vm_size               = "Standard_B2s_v2"
+#   auto_scaling_enabled   = true
+#   min_count             = 1
+#   max_count             = 5
+#   mode                  = "User"
+# }
+#
+# # Autoscaling Node Pool (1-3 Nodes)
+# resource "azurerm_kubernetes_cluster_node_pool" "autoscaling_2" {
+#   name                  = "upgradepool"
+#   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
+#   vm_size               = "Standard_B4s_v2"
+#   auto_scaling_enabled   = true
+#   min_count             = 1
+#   max_count             = 3
+#   mode                  = "User"
+# }
