@@ -11,3 +11,5 @@
 /BRC_terraform/terraform.tfstate
 /BRC_terraform/terraform.tfstate.backup
 /BRC_terraform/.terraform.lock.hcl
+/BRC/controller-secrets.yaml
+/BRC_terraform/controller-secrets.yaml

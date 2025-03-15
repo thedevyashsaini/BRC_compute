@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: controller-app
+  template:
+    metadata:
+      labels:
+        app: controller-app
+    spec:
+      nodeSelector:
+        agentpool: controller
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:4.0-management
+          ports:
+            - containerPort: 5672
+            - containerPort: 15672
+          livenessProbe:
+            tcpSocket:
+              port: 5672
+            initialDelaySeconds: 30
+            periodSeconds: 15
+
+
+
+        - name: controller
+          image: steakfisher1/brc-controller:latest
+          envFrom:
+            - configMapRef:
+                name: controller-config
+            - secretRef:
+                name: controller-secret
+          ports:
+            - containerPort: 5000
+
+          readinessProbe:
+            tcpSocket:
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: controller-service
+spec:
+  selector:
+    app: controller-app
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+  type: LoadBalancer
