@@ -40,7 +40,7 @@ jobs:
       - name: Commit and push to SteakFisher/BRC
         working-directory: updated_repo
         env:
-          TDS_PAT: ${{ secrets.STEAK_PAT }}
+          STEAK_PAT: ${{ secrets.STEAK_PAT }}
         run: |
           git config user.name "TDS GitHub Action"
           git config user.email "action@github.com"
