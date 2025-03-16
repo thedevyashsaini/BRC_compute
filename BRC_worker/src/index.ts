@@ -41,5 +41,3 @@ setupQueueConsumer(async (message, ack, nack) => {
     console.error("Failed to set up queue consumer:", error);
     process.exit(1);
   });
-
-  
