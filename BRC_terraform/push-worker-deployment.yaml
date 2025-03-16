@@ -21,7 +21,7 @@ spec:
             privileged: true
           env:
             - name: DOCKER_HOST
-              value: unix:///var/run/docker.sock
+              value: "tcp://localhost:2375"  # Changed to use TCP instead of socket
           envFrom:
             - configMapRef:
                 name: push-worker-config
@@ -29,9 +29,6 @@ spec:
                 name: push-worker-secret
           ports:
             - containerPort: 5000
-          volumeMounts:
-            - name: docker-socket
-              mountPath: /var/run
 
         - name: dind
           image: docker:dind
@@ -43,24 +40,3 @@ spec:
           args:
             - "--host=tcp://0.0.0.0:2375"
             - "--storage-driver=overlay2"
-          volumeMounts:
-            - name: docker-socket
-              mountPath: /var/run
-
-      volumes:
-        - name: docker-socket
-          emptyDir: { }
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: push-worker-service
-spec:
-  selector:
-    app: push-worker-app
-  ports:
-    - protocol: TCP
-      port: 5000
-      targetPort: 5000
-  type: ClusterIP

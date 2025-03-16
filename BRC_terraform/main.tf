@@ -50,6 +50,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     node_count          = 1
     vm_size             = "Standard_B2ms"
     orchestrator_version = "1.30.9"
+    vnet_subnet_id = "azurerm_subnet".subnet.id
   }
 
   identity {
