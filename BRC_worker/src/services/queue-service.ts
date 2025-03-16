@@ -33,6 +33,7 @@ export function setupQueueConsumer(handler: MessageHandler): Promise<void> {
 
         console.log(" [*] Waiting for %s. To exit press CTRL+C", QUEUE_NAME);
 
+        channel.prefetch(1);
         channel.consume(
           QUEUE_NAME,
           async function (msg) {
