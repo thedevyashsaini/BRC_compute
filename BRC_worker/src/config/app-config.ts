@@ -2,7 +2,7 @@ import { dirname } from "path";
 import { fileURLToPath } from "node:url";
 import { App } from "octokit";
 
-export const QUEUE_NAME = "proposal";
+export const QUEUE_NAME = process.env.QUEUE_NAME || "proposal";
 export const RABBITMQ_URL = "amqp://rabbitmq";
 export const WORKER_NAME = process.env.WORKER_NAME;
 export const TEST_LEVEL = process.env.TEST_LEVEL;
