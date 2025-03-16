@@ -1,9 +1,9 @@
-name: Build and push worker image
+name: Build and push controller image
 
 on:
   push:
     paths:
-      - "BRC_worker/**"
+      - "BRC_controller/**"
 
 jobs:
   build-worker:
@@ -28,7 +28,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
-          context: ./BRC_worker
+          context: ./BRC_controller
           push: true
-          tags: ${{ secrets.STEAK_DOCKERHUB_USERNAME }}/${{ secrets.WORKER_IMAGE_NAME }}:${{ github.sha }}, ${{ secrets.STEAK_DOCKERHUB_USERNAME }}/${{ secrets.WORKER_IMAGE_NAME }}:latest
+          tags: ${{ secrets.STEAK_DOCKERHUB_USERNAME }}/${{ secrets.CONTROLLER_IMAGE_NAME }}:${{ github.sha }}, ${{ secrets.STEAK_DOCKERHUB_USERNAME }}/${{ secrets.CONTROLLER_IMAGE_NAME }}:latest
          
