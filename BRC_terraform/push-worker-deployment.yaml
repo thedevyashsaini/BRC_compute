@@ -15,13 +15,40 @@ spec:
       nodeSelector:
         agentpool: pushpool
       containers:
+        - name: dind
+          image: docker:dind
+          securityContext:
+            privileged: true
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
+          args:
+            - "--host=tcp://0.0.0.0:2375"
+            - "--storage-driver=overlay2"
+          readinessProbe:
+            exec:
+              command: [ "sh", "-c", "docker info >/dev/null 2>&1" ]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+
         - name: push-worker
           image: steakfisher1/brc-worker:latest
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              echo "Waiting for Docker daemon to be ready..."
+              until docker info >/dev/null 2>&1; do
+                echo "Docker daemon not ready yet, waiting..."
+                sleep 5
+              done
+              echo "Docker daemon is ready! Starting application..."
+              exec npm start
           securityContext:
             privileged: true
           env:
             - name: DOCKER_HOST
-              value: "tcp://localhost:2375"  # Changed to use TCP instead of socket
+              value: "tcp://localhost:2375"
           envFrom:
             - configMapRef:
                 name: push-worker-config
@@ -29,14 +56,3 @@ spec:
                 name: push-worker-secret
           ports:
             - containerPort: 5000
-
-        - name: dind
-          image: docker:dind
-          securityContext:
-            privileged: true
-          env:
-            - name: DOCKER_TLS_CERTDIR
-              value: ""  # Disable TLS completely
-          args:
-            - "--host=tcp://0.0.0.0:2375"
-            - "--storage-driver=overlay2"
