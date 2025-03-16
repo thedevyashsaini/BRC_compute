@@ -49,7 +49,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     name                = "system"
     node_count          = 1
     vm_size             = "Standard_B2ms"
-    orchestrator_version = "1.28"
+    orchestrator_version = "1.30.9"
   }
 
   identity {
@@ -66,16 +66,16 @@ resource "azurerm_kubernetes_cluster_node_pool" "fixed_pool" {
   mode                  = "User"
 }
 
-# # Autoscaling Node Pool (1-5 Nodes)
-# resource "azurerm_kubernetes_cluster_node_pool" "autoscaling_1" {
-#   name                  = "pushpool"
-#   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
-#   vm_size               = "Standard_B2s_v2"
-#   auto_scaling_enabled   = true
-#   min_count             = 1
-#   max_count             = 5
-#   mode                  = "User"
-# }
+# Autoscaling Node Pool (1-5 Nodes)
+resource "azurerm_kubernetes_cluster_node_pool" "autoscaling_1" {
+  name                  = "pushpool"
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
+  vm_size               = "Standard_B2s_v2"
+  auto_scaling_enabled   = true
+  min_count             = 1
+  max_count             = 5
+  mode                  = "User"
+}
 #
 # # Autoscaling Node Pool (1-3 Nodes)
 # resource "azurerm_kubernetes_cluster_node_pool" "autoscaling_2" {

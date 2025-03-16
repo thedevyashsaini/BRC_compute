@@ -11,5 +11,8 @@
 /BRC_terraform/terraform.tfstate
 /BRC_terraform/terraform.tfstate.backup
 /BRC_terraform/.terraform.lock.hcl
-/BRC/controller-secrets.yaml
 /BRC_terraform/controller-secrets.yaml
+/BRC_terraform/.env.controller.prod
+/BRC_terraform/.env.push-worker.prod
+/BRC_terraform/push-worker-secrets.yaml
+/BRC/controller-secrets.yaml

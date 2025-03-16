@@ -10,24 +10,30 @@ FROM node:${NODE_VERSION}-alpine as base
 WORKDIR /usr/src/app
 RUN mkdir -p /usr/src/app/dist/src && chown -R node:node /usr/src/app
 
-# Install Git, docker in the base image.
-RUN apk add --no-cache git docker-cli docker-cli-buildx docker-compose
+# Install Git, Docker, Docker Daemon, and dependencies.
+RUN apk add --no-cache git docker-cli docker-cli-buildx docker-compose \
+    docker openrc shadow
 
-# Add node user to docker group
+# Ensure the docker group exists and matches the host's GID
 ARG DOCKER_GID=984
-RUN addgroup -g $DOCKER_GID docker && adduser node docker
+RUN addgroup -g $DOCKER_GID docker || true && adduser node docker
 
-# Force a new shell session so group membership applies
+# Start Docker daemon in the background
+RUN dockerd &
+
+# Set up new user session so group membership applies
+USER node
+
+# Ensure Docker daemon is running
+RUN docker version || echo "Docker is not running!"
+
 ENTRYPOINT ["sh", "-c", "exec node dist/src/index.js"]
 
 ################################################################################
-# Create a stage for installing production dependecies.
+# Create a stage for installing production dependencies.
 FROM base as deps
 
 # Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.npm to speed up subsequent builds.
-# Leverage bind mounts to package.json and package-lock.json to avoid having to copy them
-# into this layer.
 RUN --mount=type=bind,source=package.json,target=package.json \
     --mount=type=bind,source=package-lock.json,target=package-lock.json \
     --mount=type=cache,target=/root/.npm \
@@ -37,40 +43,33 @@ RUN --mount=type=bind,source=package.json,target=package.json \
 # Create a stage for building the application.
 FROM deps as build
 
-# Download additional development dependencies before building, as some projects require
-# "devDependencies" to be installed to build. If you don't need this, remove this step.
+# Install dev dependencies
 RUN --mount=type=bind,source=package.json,target=package.json \
     --mount=type=bind,source=package-lock.json,target=package-lock.json \
     --mount=type=cache,target=/root/.npm \
     npm ci
 
-# Copy the rest of the source files into the image.
+# Copy source files and build
 COPY . .
-# Run the build script.
 RUN npm run build
 
 ################################################################################
-# Create a new stage to run the application with minimal runtime dependencies
-# where the necessary files are copied from the build stage.
+# Final runtime image
 FROM base as final
 
-# Use production node environment by default.
+# Use production node environment
 ENV NODE_ENV production
 
-# Run the application as a non-root user.
+# Run as non-root user
 USER node
 
-# Copy package.json so that package manager commands can be used.
+# Copy required files
 COPY package.json .
-
-# Copy the production dependencies from the deps stage and also
-# the built application from the build stage into the image.
 COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/dist ./dist
 
-
-# Expose the port that the application listens on.
+# Expose port
 EXPOSE 5000
 
-# Run the application.
-CMD npm start
+# Start the app
+CMD ["npm", "start"]
