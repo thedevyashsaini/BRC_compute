@@ -69,7 +69,10 @@ async fn main() -> io::Result<()> {
     );
 
     let expected_output_lines = match file_manager::read_lines_from_file(&expected_output_file_path) {
-        Ok(lines) => lines,
+        Ok(lines) => {
+            fs::remove_file(expected_output_file_path)?;
+            lines
+        },
         Err(e) => {
             status::write_status(false, &format!("Failed to read expected output: {}", e)).await?;
             return Ok(());
@@ -91,6 +94,8 @@ async fn main() -> io::Result<()> {
         status::write_status(false, &validation_result.message).await?;
         return Err(io::Error::new(io::ErrorKind::Other, validation_result.message));
     }
+
+    fs::remove_file("src/output.txt")?;
 
     println!("{}", validation_result.message);
 
