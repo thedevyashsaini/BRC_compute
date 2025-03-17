@@ -50,8 +50,10 @@ RUN --mount=type=bind,source=package.json,target=package.json \
     npm ci
 
 # Copy source files and build
+USER root
 COPY . .
 RUN npm run build
+USER node
 
 ################################################################################
 # Final runtime image

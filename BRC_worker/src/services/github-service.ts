@@ -1,5 +1,5 @@
 import { App } from "octokit";
-import { createGitHubApp, BRC_INSTALLATION_ID } from "../config/app-config.js";
+import { createGitHubApp } from "../config/app-config.js";
 import type { MessageRepo } from "../models/message.js";
 
 export class GitHubService {
