@@ -95,7 +95,10 @@ async fn main() -> io::Result<()> {
         return Err(io::Error::new(io::ErrorKind::Other, validation_result.message));
     }
 
-    fs::remove_file("src/output.txt")?;
+    if let Err(error) = fs::remove_file("src/output.txt") {
+        status::write_status(false, &format!("Failed to remove output file: {}", error)).await?;
+        return Ok(());
+    }
 
     println!("{}", validation_result.message);
 
