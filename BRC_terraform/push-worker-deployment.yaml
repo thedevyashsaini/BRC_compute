@@ -3,7 +3,6 @@ kind: Deployment
 metadata:
   name: push-worker-app
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: push-worker-app
@@ -12,6 +11,11 @@ spec:
       labels:
         app: push-worker-app
     spec:
+#      tolerations:
+#        - key: "dedicated"
+#          operator: "Equal"
+#          value: "pushworker"
+#          effect: "NoSchedule"
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -30,6 +34,7 @@ spec:
                     values:
                       - push-worker-app
               topologyKey: "kubernetes.io/hostname"
+#      priorityClassName: high-priority
       containers:
         - name: dind
           image: docker:dind
