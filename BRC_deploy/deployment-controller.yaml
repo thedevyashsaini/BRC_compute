@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller
-  labels:
-    app: controller
 spec:
   replicas: 1
   selector:
