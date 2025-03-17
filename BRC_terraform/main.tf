@@ -88,6 +88,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "autoscaling_1" {
   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
   vm_size               = "Standard_B2s_v2"
   auto_scaling_enabled   = true
+  node_count            = 0
   min_count             = 0
   max_count             = 5
   mode                  = "User"

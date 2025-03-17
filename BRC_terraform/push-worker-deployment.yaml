@@ -12,8 +12,24 @@ spec:
       labels:
         app: push-worker-app
     spec:
-      nodeSelector:
-        agentpool: pushpool
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: agentpool
+                    operator: In
+                    values:
+                      - pushpool
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - push-worker-app
+              topologyKey: "kubernetes.io/hostname"
       containers:
         - name: dind
           image: docker:dind
