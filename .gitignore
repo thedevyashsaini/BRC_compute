@@ -16,3 +16,7 @@
 /BRC_terraform/.env.push-worker.prod
 /BRC_terraform/push-worker-secrets.yaml
 /BRC/controller-secrets.yaml
+
+BRC_deploy/CRU/*.tfvars
+BRC_deploy/CRU/vars/*
+BRC_deploy/CRU/keys/*
