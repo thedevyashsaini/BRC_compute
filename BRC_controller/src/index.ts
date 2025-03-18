@@ -251,7 +251,7 @@ app.post("/upgrade", async (req: Request, res: Response): Promise<void> => {
           throw error1;
           return;
         }
-        var queue = "proposal";
+        var queue = "divorce";
 
         channel.assertQueue(queue, {
           durable: false,
