@@ -10,6 +10,13 @@ spec:
   maxReplicaCount: 5
   pollingInterval: 15
   cooldownPeriod: 300
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+        scaleUp:
+          stabilizationWindowSeconds: 0
   triggers:
     - type: rabbitmq
       metadata:
