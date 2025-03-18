@@ -71,27 +71,41 @@ resource "azurerm_kubernetes_cluster" "aks" {
     dns_service_ip   = "172.16.0.10"
     pod_cidr        = "10.244.0.0/16"
   }
+
+  auto_scaler_profile {
+    balance_similar_node_groups      = true
+    expander                         = "random"
+    scale_down_utilization_threshold = "0.5"
+    scale_down_delay_after_add       = "5m"
+  }
 }
 
 # Additional Node Pool (1 Node, 2 Pods)
 resource "azurerm_kubernetes_cluster_node_pool" "fixed_pool" {
-  name                  = "controller"
-  kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
-  vm_size               = "Standard_B2s"
-  node_count            = 1
-  mode                  = "User"
+  name                      = "controller"
+  kubernetes_cluster_id     = azurerm_kubernetes_cluster.aks.id
+  vm_size                   = "Standard_B2ls_v2"
+  node_count                = 1
+  mode                      = "User"
+  vnet_subnet_id            = azurerm_subnet.subnet.id
+  temporary_name_for_rotation = "controllertp"
 }
 
 # Autoscaling Node Pool (1-5 Nodes)
 resource "azurerm_kubernetes_cluster_node_pool" "autoscaling_1" {
-  name                  = "pushpool"
-  kubernetes_cluster_id = azurerm_kubernetes_cluster.aks.id
-  vm_size               = "Standard_B2s_v2"
-  auto_scaling_enabled   = true
-  node_count            = 0
-  min_count             = 0
-  max_count             = 5
-  mode                  = "User"
+  name                      = "pushpool"
+  kubernetes_cluster_id     = azurerm_kubernetes_cluster.aks.id
+  vm_size                   = "Standard_B2s_v2"
+  auto_scaling_enabled      = true
+  node_count                = 1
+  min_count                 = 1  # Set to 1 instead of 0 initially
+  max_count                 = 5
+  mode                      = "User"
+  node_taints               = ["dedicated=pushworker:NoSchedule"]
+  vnet_subnet_id            = azurerm_subnet.subnet.id
+  temporary_name_for_rotation = "pushpooltp"
+  priority = "Spot"
+  eviction_policy = "Deallocate"
 }
 
 provider "helm" {

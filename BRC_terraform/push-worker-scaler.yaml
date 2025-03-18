@@ -2,23 +2,26 @@ apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
   name: push-worker-scaler
-  namespace: default
 spec:
   scaleTargetRef:
-    kind: Deployment
     name: push-worker-app
-  pollingInterval: 15
-  cooldownPeriod: 600
+    kind: Deployment
   minReplicaCount: 0
   maxReplicaCount: 5
-  fallback:
-    failureThreshold: 3
-    replicas: 1
+  pollingInterval: 15
+  cooldownPeriod: 300
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+        scaleUp:
+          stabilizationWindowSeconds: 0
   triggers:
     - type: rabbitmq
       metadata:
         protocol: amqp
         queueName: proposal
+        host: amqp://rabbitmq.default.svc.cluster.local:5672/
         mode: QueueLength
         value: "1"
-        host: amqp://rabbitmq.default.svc.cluster.local:5672/
