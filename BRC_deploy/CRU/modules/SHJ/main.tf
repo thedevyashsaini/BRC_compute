@@ -26,28 +26,28 @@ resource "azurerm_subnet" "subnet" {
   address_prefixes     = [var.subnet_prefix]
 }
 
-resource "azurerm_public_ip" "controller_ip" {
-  name                = "${var.controller_vm_name}-ip"
+resource "azurerm_public_ip" "master_push_worker_ip" {
+  name                = "master-push-worker-ip"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   allocation_method   = "Static"
 }
 
-resource "azurerm_network_interface" "controller_nic" {
-  name                =  "${var.controller_vm_name}-nic"
+resource "azurerm_network_interface" "master_push_worker_nic" {
+  name                = "master-push-worker-nic"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
 
   ip_configuration {
-    name                          = "controller-ip-config"
+    name                          = "internal"
     subnet_id                     = azurerm_subnet.subnet.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.controller_ip.id
+    public_ip_address_id          = azurerm_public_ip.master_push_worker_ip.id
   }
 }
 
-resource "azurerm_network_security_group" "controller_nsg" {
-  name                = "${var.controller_vm_name}-nsg"
+resource "azurerm_network_security_group" "master_push_worker_nsg" {
+  name                = "master-push-worker-nsg"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -62,44 +62,20 @@ resource "azurerm_network_security_group" "controller_nsg" {
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
-
-  security_rule {
-    name                       = "allow_5000"
-    priority                   = 110
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "5000"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "allow_rabbitmq_vnet_only"
-    priority                   = 120
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_ranges    = ["5672", "15672"]
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
 }
 
-resource "azurerm_network_interface_security_group_association" "controller_nsg_assoc" {
-  network_interface_id      = azurerm_network_interface.controller_nic.id
-  network_security_group_id = azurerm_network_security_group.controller_nsg.id
+resource "azurerm_network_interface_security_group_association" "master_push_worker_nsg_assoc" {
+  network_interface_id      = azurerm_network_interface.master_push_worker_nic.id
+  network_security_group_id = azurerm_network_security_group.master_push_worker_nsg.id
 }
 
-resource "azurerm_linux_virtual_machine" "controller" {
-  name                = var.controller_vm_name
+resource "azurerm_linux_virtual_machine" "master_push_worker" {
+  name                = "master-${var.worker_vm_name}"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
-  size                = var.controller_vm_size
+  size                = var.worker_vm_size
   admin_username      = var.admin_username
-  network_interface_ids = [azurerm_network_interface.controller_nic.id]
+  network_interface_ids = [azurerm_network_interface.master_push_worker_nic.id]
 
   admin_ssh_key {
     username   = var.admin_username
@@ -118,9 +94,13 @@ resource "azurerm_linux_virtual_machine" "controller" {
     version   = var.vm_image.version
   }
 
+  provisioner "local-exec" {
+    command = "cp ${var.worker_env_path} ${var.worker_env_modified_path} && echo 'RABBITMQ_URL=amqp://${var.rabbitmq_user}:${var.rabbitmq_password}@${var.controller_public_ip}:5672\\nQUEUE_NAME=${var.queue_name}\\nWORKER_NAME=${var.worker-1-name}' | cat - ${var.worker_env_modified_path} > temp && mv temp ${var.worker_env_modified_path}"
+  }
+
   provisioner "file" {
-    source      = var.controller_env_path
-    destination = "/home/${var.admin_username}/controller.env"
+    source      = var.worker_env_modified_path
+    destination = "/home/${var.admin_username}/push-worker.env"
   }
 
   provisioner "file" {
@@ -132,9 +112,10 @@ resource "azurerm_linux_virtual_machine" "controller" {
     inline = [
       "sudo apt update && sudo apt install -y docker.io",
       "sudo systemctl start docker",
-      "sudo docker network create brc-network",
-      "sudo docker run --network brc-network --env-file /home/${var.admin_username}/controller.env -p 5000:5000 -d --name controller ${var.controller_image}",
-      "sudo docker run --network brc-network -d -p 5672:5672 -p 15672:15672 --name rabbitmq -e RABBITMQ_DEFAULT_USER=${var.rabbitmq_user} -e RABBITMQ_DEFAULT_PASS=${var.rabbitmq_password} -e RABBITMQ_NODENAME=rabbit rabbitmq:management"
+      "sudo usermod -aG docker ${var.admin_username}",
+      "sudo chmod 666 /var/run/docker.sock",
+      "sleep 30",
+      "sudo docker run --env-file /home/${var.admin_username}/push-worker.env -d --name push-worker -v /var/run/docker.sock:/var/run/docker.sock ${var.worker_image}"
     ]
   }
 
@@ -142,12 +123,12 @@ resource "azurerm_linux_virtual_machine" "controller" {
     type        = "ssh"
     user        = var.admin_username
     private_key = file(var.ssh_private_key_path)
-    host        = azurerm_public_ip.controller_ip.ip_address
+    host        = azurerm_public_ip.master_push_worker_ip.ip_address
   }
 }
 
 resource "azurerm_network_interface" "upgrade_worker_nic" {
-  name                = "${var.worker_vm_name}-nic"
+  name                = "upgrade-worker-nic"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
 
@@ -159,10 +140,10 @@ resource "azurerm_network_interface" "upgrade_worker_nic" {
 }
 
 resource "azurerm_linux_virtual_machine" "upgrade_worker" {
-  name                = var.worker_vm_name
+  name                = "upgrade-worker"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
-  size                = var.worker_vm_size
+  size                = var.upgrade-vm-size
   admin_username      = var.admin_username
   network_interface_ids = [azurerm_network_interface.upgrade_worker_nic.id]
 
@@ -184,7 +165,7 @@ resource "azurerm_linux_virtual_machine" "upgrade_worker" {
   }
 
   provisioner "local-exec" {
-    command = "cp ${var.worker_env_path} ${var.worker_env_modified_path} && echo 'RABBITMQ_URL=amqp://${var.rabbitmq_user}:${var.rabbitmq_password}@${azurerm_network_interface.controller_nic.private_ip_address}:5672\nQUEUE_NAME=${var.queue_name}\nWORKER_NAME=${var.worker_name}' | cat - ${var.worker_env_modified_path} > temp && mv temp ${var.worker_env_modified_path}"
+    command = "cp ${var.worker_env_path} ${var.worker_env_modified_path} && echo 'RABBITMQ_URL=amqp://${var.rabbitmq_user}:${var.rabbitmq_password}@${var.controller_public_ip}:5672\\nQUEUE_NAME=${var.upgrade_queue_name}\\nWORKER_NAME=${var.upgrade-worker-name}' | cat - ${var.worker_env_modified_path} > temp && mv temp ${var.worker_env_modified_path}"
   }
 
   provisioner "file" {
@@ -208,7 +189,7 @@ resource "azurerm_linux_virtual_machine" "upgrade_worker" {
     user        = var.admin_username
     private_key = file(var.ssh_private_key_path)
     host        = azurerm_network_interface.upgrade_worker_nic.private_ip_address
-    bastion_host = azurerm_public_ip.controller_ip.ip_address
+    bastion_host = azurerm_public_ip.master_push_worker_ip.ip_address
     bastion_user = var.admin_username
     bastion_private_key = file(var.ssh_private_key_path)
   }

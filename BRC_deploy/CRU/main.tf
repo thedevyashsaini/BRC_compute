@@ -24,7 +24,8 @@ module "JDP" {
 
   ssh_private_key_path = "${path.module}/keys/brc"
   ssh_public_key_path  = "${path.module}/keys/brc.pub"
-  queue_name = "proposal"
+  queue_name = "divorce"
+  worker_name = "Tom"
 }
 
 module "TDS" {
@@ -37,21 +38,24 @@ module "TDS" {
   ssh_private_key_path = "${path.module}/keys/brc"
   ssh_public_key_path  = "${path.module}/keys/brc.pub"
   queue_name = "proposal"
+  controller_public_ip = module.JDP.controller_ip
+  worker-1-name = "Akkad"
+  worker-2-name = "Bakkad"
+  worker-3-name = "Bambey"
 }
 
-module "PEERING" {
-  source = "./modules/PEERING"
+module "SHJ" {
+  source = "./modules/SHJ"
 
   providers = {
-    azurerm.jdp = azurerm.jdp
-    azurerm.tds = azurerm.tds
+    azurerm = azurerm.shj
   }
 
-  tds_rg_name = module.TDS.resource_group_name
-  tds_vnet_id = module.TDS.vnet_id
-  tds_vnet_name = module.TDS.vnet_name
-
-  jdp_rg_name   = module.JDP.resource_group_name
-  jdp_vnet_id   = module.JDP.vnet_id
-  jdp_vnet_name = module.JDP.vnet_name
+  ssh_private_key_path = "${path.module}/keys/brc"
+  ssh_public_key_path  = "${path.module}/keys/brc.pub"
+  queue_name = "proposal"
+  upgrade_queue_name = "divorce"
+  controller_public_ip = module.JDP.controller_ip
+  worker-1-name = "Bow"
+  upgrade-worker-name = "Jerry"
 }

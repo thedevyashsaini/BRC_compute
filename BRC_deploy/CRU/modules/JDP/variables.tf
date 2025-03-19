@@ -46,6 +46,12 @@ variable "controller_vm_size" {
   default     = "Standard_B2s_v2"
 }
 
+variable "worker_name" {
+  description = "Name of the worker as seen in github"
+  type        = string
+  default     = "worker"
+}
+
 variable "worker_vm_name" {
   description = "Name of the worker VM"
   type        = string
@@ -83,7 +89,7 @@ variable "controller_env_path" {
 variable "worker_env_path" {
   description = "Path to the worker environment file"
   type        = string
-  default     = "vars/upgrade-worker.env"
+  default     = "vars/worker.env"
 }
 
 variable "worker_env_modified_path" {

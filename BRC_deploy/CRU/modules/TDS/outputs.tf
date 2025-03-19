@@ -1,27 +1,23 @@
-# output "controller_ip" {
-#   value = azurerm_public_ip.controller_ip.ip_address
-# }
-#
-# output "controller_ssh" {
-#   value = "ssh bradmin@${azurerm_public_ip.controller_ip.ip_address} -i ~/.ssh/brc"
-# }
-
-output "upgrade_worker_ip" {
-  value = azurerm_network_interface.upgrade_worker_nic.private_ip_address
+output "master_push_worker_public_ip" {
+  value = azurerm_public_ip.master_push_worker_ip.ip_address
 }
 
-output "upgrade_worker_ssh" {
-  value = "chmod 600 /home/bradmin/.ssh/brc && ssh bradmin@${azurerm_network_interface.upgrade_worker_nic.private_ip_address} -i /home/bradmin/.ssh/brc"
+output "master_push_worker_ssh" {
+  value = "ssh bradmin@${azurerm_public_ip.master_push_worker_ip.ip_address} -i ~/.ssh/brc"
 }
 
-output "resource_group_name" {
-  value = azurerm_resource_group.rg.name
+output "push_worker_1_private_ip" {
+  value = azurerm_network_interface.push_worker_1_nic.private_ip_address
 }
 
-output "vnet_name" {
-  value = azurerm_virtual_network.vnet.name
+output "push_worker_1_ssh" {
+  value = "chmod 600 /home/bradmin/.ssh/brc && ssh bradmin@${azurerm_network_interface.push_worker_1_nic.private_ip_address} -i /home/bradmin/.ssh/brc"
 }
 
-output "vnet_id" {
-  value = azurerm_virtual_network.vnet.id
+output "push_worker_2_private_ip" {
+  value = azurerm_network_interface.push_worker_2_nic.private_ip_address
+}
+
+output "push_worker_2_ssh" {
+  value = "chmod 600 /home/bradmin/.ssh/brc && ssh bradmin@${azurerm_network_interface.push_worker_2_nic.private_ip_address} -i /home/bradmin/.ssh/brc"
 }

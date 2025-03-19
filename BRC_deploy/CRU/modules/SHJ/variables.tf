@@ -90,7 +90,13 @@ variable "rabbitmq_password" {
 variable "queue_name" {
   description = "Name of the RabbitMQ queue"
   type        = string
-  default     = "proposal"
+  default     = "proporal"
+}
+
+variable "upgrade_queue_name" {
+    description = "Name of the RabbitMQ queue for upgrade worker"
+    type        = string
+    default     = "divorce"
 }
 
 variable "worker_image" {
@@ -126,14 +132,14 @@ variable "worker-1-name" {
   default     = "push-worker-1"
 }
 
-variable "worker-2-name" {
-  description = "Name of the second worker VM"
-  type        = string
-  default     = "push-worker-2"
+variable "upgrade-worker-name" {
+    description = "Name of the upgrade worker VM"
+    type        = string
+    default     = "upgrade-worker"
 }
 
-variable "worker-3-name" {
-  description = "Name of the third worker VM"
-  type        = string
-  default     = "push-worker-3"
+variable "upgrade-vm-size" {
+    description = "Size of the upgrade VM"
+    type        = string
+    default     = "Standard_B4s_v2"
 }
