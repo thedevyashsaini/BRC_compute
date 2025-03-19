@@ -20,3 +20,12 @@
 BRC_deploy/CRU/*.tfvars
 BRC_deploy/CRU/vars/*
 BRC_deploy/CRU/keys/*
+/BRC_deploy/CRU/.terraform.lock.hcl
+/BRC_deploy/CRU/.terraform/environment
+/BRC_deploy/CRU/.terraform/providers/registry.terraform.io/hashicorp/azurerm/4.23.0/linux_amd64/LICENSE.txt
+/BRC_deploy/CRU/.terraform/modules/modules.json
+/BRC_deploy/CRU/providers.tf
+/BRC_terraform/state-backup.json
+/BRC_deploy/CRU/.terraform/terraform.tfstate
+/BRC_worker/terraform.tfstate
+/BRC_deploy/CRU/.terraform/providers/registry.terraform.io/hashicorp/azurerm/4.23.0/linux_amd64/terraform-provider-azurerm_v4.23.0_x5
