@@ -135,13 +135,18 @@ resource "azurerm_linux_virtual_machine" "controller" {
     destination = "/home/bradmin/controller.env" # Replace
   }
 
+  provisioner "file" {
+    source      = "${path.module}/keys/brc"
+    destination = "/home/bradmin/.ssh/brc"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "sudo apt update && sudo apt install -y docker.io",
       "sudo systemctl start docker",
       "sudo docker network create brc-network",
       "sudo docker run --network brc-network --env-file /home/bradmin/controller.env -p 5000:5000 -d --name controller steakfisher1/brc-controller",
-      "sudo docker run --network brc-network -d -p 5672:5672 -p 15672:15672 --name rabbitmq rabbitmq:management"
+      "sudo docker run --network brc-network -d -p 5672:5672 -p 15672:15672 --name rabbitmq -e RABBITMQ_DEFAULT_USER=admin -e RABBITMQ_DEFAULT_PASS=1121 -e RABBITMQ_NODENAME=rabbit rabbitmq:management"
     ]
   }
 
@@ -191,7 +196,7 @@ resource "azurerm_linux_virtual_machine" "upgrade_worker" {
   }
 
   provisioner "local-exec" {
-    command = "cp ./vars/upgrade-worker.env ./vars/upgrade-worker-modified.env && echo 'RABBITMQ_URL=amqp://${azurerm_network_interface.controller_nic.private_ip_address}\nQUEUE_NAME=divorce' | cat - ./vars/upgrade-worker-modified.env > temp && mv temp ./vars/upgrade-worker-modified.env"
+    command = "cp ./vars/upgrade-worker.env ./vars/upgrade-worker-modified.env && echo 'RABBITMQ_URL=amqp://admin:1121@${azurerm_network_interface.controller_nic.private_ip_address}:5672\nQUEUE_NAME=divorce' | cat - ./vars/upgrade-worker-modified.env > temp && mv temp ./vars/upgrade-worker-modified.env" # Replace Queue Name
   }
 
   provisioner "file" {
@@ -203,7 +208,9 @@ resource "azurerm_linux_virtual_machine" "upgrade_worker" {
     inline = [
       "sudo apt update && sudo apt install -y docker.io",
       "sudo systemctl start docker",
-      "sudo docker run --env-file /home/bradmin/upgrade-worker.env -d --name upgrade-worker steakfisher1/brc-worker"
+      "sudo usermod -aG docker bradmin",
+      "sudo chmod 666 /var/run/docker.sock",
+      "sudo docker run --env-file /home/bradmin/upgrade-worker.env -d --name upgrade-worker -v /var/run/docker.sock:/var/run/docker.sock steakfisher1/brc-worker"
     ]
   }
 
@@ -216,4 +223,20 @@ resource "azurerm_linux_virtual_machine" "upgrade_worker" {
     bastion_user = "bradmin"
     bastion_private_key = file("${path.module}/keys/brc")
   }
+}
+
+output "controller_ip" {
+  value = azurerm_public_ip.controller_ip.ip_address
+}
+
+output "controller_ssh" {
+  value = "ssh bradmin@${azurerm_public_ip.controller_ip.ip_address} -i ~/.ssh/brc"
+}
+
+output "upgrade_worker_ip" {
+  value = azurerm_network_interface.upgrade_worker_nic.private_ip_address
+}
+
+output "upgrade_worker_ssh" {
+  value = "chmod 600 /home/bradmin/.ssh/brc && ssh bradmin@${azurerm_network_interface.upgrade_worker_nic.private_ip_address} -i /home/bradmin/.ssh/brc"
 }
