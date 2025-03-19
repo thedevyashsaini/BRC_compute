@@ -1,0 +1,9 @@
+version: '3'
+services:
+  worker:
+    env_file:
+      - .env
+    build:
+      context: .
+    environment:
+      NODE_ENV: production
