@@ -51,7 +51,7 @@ app.get("/", (req: Request, res: Response) => {
 
 app.get("/test", async (req: Request, res: Response) => {
   try {
-    amqp.connect("amqp://rabbitmq", function (error0: any, connection: any) {
+    amqp.connect(process.env.RABBITMQ_URL || "amqp://rabbitmq", function (error0: any, connection: any) {
       if (error0) {
         throw error0;
       }
@@ -145,7 +145,7 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
       description: "Initial screen done, sending to test unit...",
     });
 
-    amqp.connect("amqp://rabbitmq", function (error0: any, connection: any) {
+    amqp.connect(process.env.RABBITMQ_URL || "amqp://rabbitmq", function (error0: any, connection: any) {
       if (error0) {
         throw error0;
       }
@@ -241,7 +241,7 @@ app.post("/upgrade", async (req: Request, res: Response): Promise<void> => {
     console.log(repository)
 
     // Send the upgrade request to the queue
-    amqp.connect("amqp://rabbitmq", function (error0: any, connection: any) {
+    amqp.connect(process.env.RABBITMQ_URL || "amqp://rabbitmq", function (error0: any, connection: any) {
       if (error0) {
         throw error0;
         return;
