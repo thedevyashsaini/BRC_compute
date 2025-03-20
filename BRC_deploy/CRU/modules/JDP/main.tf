@@ -70,7 +70,7 @@ resource "azurerm_network_security_group" "controller_nsg" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-Shoul    destination_port_ranges    = ["80", "443"]
+    destination_port_ranges    = ["5000"]
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
