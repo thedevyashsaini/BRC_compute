@@ -83,7 +83,7 @@ async fn main() -> io::Result<()> {
     let test_result = test_runner::run_python_test(TIMEOUT).await?;
     if !test_result.success {
         status::write_status(false, &test_result.message).await?;
-        return Err(io::Error::new(io::ErrorKind::Other, test_result.message));
+        return Ok(());
     }
 
     let skip_calibration = test_result.runtime.is_none() || test_result.runtime.unwrap() >= CALIBRATION_TIMEOUT; 
