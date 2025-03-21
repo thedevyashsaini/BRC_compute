@@ -132,7 +132,7 @@ async fn main() -> io::Result<()> {
     };
 
     println!("Got benchmark output!\nParsing benchmark...");
-    let parsed_benchmark = match benchmark::parser::parse(benchmark_output) {
+    let parsed_benchmark = match benchmark::parser::parse(benchmark_output, skip_calibration) {
         Ok(p) => p,
         Err(e) => {
             status::write_status(false, &format!("Failed to parse benchmark: {}", e)).await?;
