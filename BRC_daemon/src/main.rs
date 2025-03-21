@@ -10,7 +10,7 @@ use std::io;
 use std::fs;
 
 const TIMEOUT: u64 = 40;
-const CALIBRATION_TIMEOUT: u64 = 20;
+const CALIBRATION_TIMEOUT: u64 = TIMEOUT + 1;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {

@@ -70,7 +70,7 @@ resource "azurerm_network_security_group" "controller_nsg" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "5000"
+    destination_port_ranges    = ["5000"]
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
@@ -128,13 +128,28 @@ resource "azurerm_linux_virtual_machine" "controller" {
     destination = "/home/${var.admin_username}/.ssh/brc"
   }
 
+  provisioner "file" {
+    source      = var.nginx_config_path
+    destination = "/home/${var.admin_username}/api.brc.r00t3d.co"
+  }
+
   provisioner "remote-exec" {
     inline = [
-      "sudo apt update && sudo apt install -y docker.io",
+      "sudo apt update && sudo apt install -y certbot",
+      "sudo mv /home/${var.admin_username}/api.brc.r00t3d.co /etc/nginx/sites-available/ && sudo chmod 644 /etc/nginx/sites-available/api.brc.r00t3d.co",
+      # "curl -X PUT \"https://api.cloudflare.com/client/v4/zones/${var.cloudflare_zone_id}/dns_records/${var.cloudflare_record_id}\" -H \"Authorization: Bearer ${var.cloudflare_token}\" -H \"Content-Type: application/json\" --data '{\"type\":\"A\",\"name\":\"api.brc.r00t3d.co\",\"content\":\"'\"$(curl -s https://api64.ipify.org)\"'\",\"ttl\":120}'",
+      # "sleep 10",
+      # "sudo certbot certonly --standalone -d api.brc.r00t3d.co --agree-tos --email dysaini2004@gmail.com --non-interactive",
+      "sudo apt install -y docker.io nginx",
+      "sudo curl -o /etc/letsencrypt/options-ssl-nginx.conf https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf",
+      "sudo curl -o /etc/letsencrypt/ssl-dhparams.pem https://raw.githubusercontent.com/certbot/certbot/master/certbot/certbot/ssl-dhparams.pem",
+      # "sudo systemctl start nginx",
       "sudo systemctl start docker",
       "sudo docker network create brc-network",
       "sudo docker run --network brc-network --env-file /home/${var.admin_username}/controller.env -p 5000:5000 -d --name controller ${var.controller_image}",
-      "sudo docker run --network brc-network -d -p 5672:5672 -p 15672:15672 --name rabbitmq -e RABBITMQ_DEFAULT_USER=${var.rabbitmq_user} -e RABBITMQ_DEFAULT_PASS=${var.rabbitmq_password} -e RABBITMQ_NODENAME=rabbit rabbitmq:management"
+      "sudo docker run --network brc-network -d -p 5672:5672 -p 15672:15672 --name rabbitmq -e RABBITMQ_DEFAULT_USER=${var.rabbitmq_user} -e RABBITMQ_DEFAULT_PASS=${var.rabbitmq_password} -e RABBITMQ_NODENAME=rabbit rabbitmq:management",
+      # "sudo ln -s /etc/nginx/sites-available/api.brc.r00t3d.co /etc/nginx/sites-enabled/",
+      # "sudo systemctl reload nginx"
     ]
   }
 
@@ -165,6 +180,7 @@ resource "azurerm_linux_virtual_machine" "upgrade_worker" {
   size                = var.worker_vm_size
   admin_username      = var.admin_username
   network_interface_ids = [azurerm_network_interface.upgrade_worker_nic.id]
+  depends_on = [azurerm_linux_virtual_machine.controller]
 
   admin_ssh_key {
     username   = var.admin_username

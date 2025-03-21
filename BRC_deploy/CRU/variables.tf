@@ -39,3 +39,19 @@ variable "shj_client_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare zone ID"
+  type        = string
+}
+
+variable "cloudflare_record_id" {
+  description = "Cloudflare record ID"
+  type        = string
+}
+
+variable "cloudflare_token" {
+  description = "Cloudflare API token"
+  type        = string
+  sensitive   = true
+}

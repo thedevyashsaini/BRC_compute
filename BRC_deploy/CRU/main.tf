@@ -26,6 +26,7 @@ module "JDP" {
   ssh_public_key_path  = "${path.module}/keys/brc.pub"
   queue_name = "divorce"
   worker_name = "Tom"
+  nginx_config_path    = "./ssl/api.brc.r00t3d.co"
 }
 
 module "TDS" {
