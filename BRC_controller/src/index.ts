@@ -111,12 +111,6 @@ app.post("/commit", async (req: Request, res: Response): Promise<void> => {
     const { ref, repository, installation, after } = req.body;
     console.log(" [x] Got request - ", repository);
 
-    if (ref !== `refs/heads/${repository.master_branch}`) {
-      res.status(200).send("Not on main branch, skipping.");
-      console.error(" [-] Not main branch.");
-      return;
-    }
-
     if (!repository || !repository.url) {
       res.status(200).send("Repository URL doesn't exist, it's smth else.");
       console.error(" [-] Repo URL doesn't exist.");
