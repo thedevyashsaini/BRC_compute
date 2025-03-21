@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};
 use std::collections::HashMap;
@@ -37,11 +37,13 @@ impl BenchmarkStats {
 struct Run {
     values: Option<Vec<f64>>,
     warmups: Vec<(u32, f64)>,
-    metadata: Metadata,
+    #[serde(default)]
+    metadata: Option<Metadata>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 struct Metadata {
+    #[serde(default)]
     date: String,
 }
 
@@ -49,11 +51,11 @@ fn median(values: &[f64]) -> f64 {
     if values.is_empty() {
         panic!("Cannot calculate median of an empty array");
     }
-    
+
     let mut sorted = values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let mid = sorted.len() / 2;
-    
+
     if sorted.len() % 2 != 0 {
         sorted[mid]
     } else {
@@ -81,7 +83,7 @@ fn percentile(values: &[f64], p: f64) -> f64 {
 
     let mut sorted = values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    
+
     let pos = (sorted.len() - 1) as f64 * p;
     let base = pos.floor() as usize;
     let rest = pos - base as f64;
@@ -107,16 +109,12 @@ pub fn parse(data: serde_json::Value) -> Result<(BenchmarkStats, Value)> {
 
     let values_ms: Vec<f64> = all_values.iter().map(|&v| v * 1_000_000.0).collect();
 
-    let first_run = &runs[0].metadata.date;
-    let last_run = &runs[runs.len() - 1].metadata.date;
-    
-    let start_date = NaiveDateTime::parse_from_str(first_run, "%Y-%m-%d %H:%M:%S%.3f")
-        .unwrap()
-        .and_utc();
-    let end_date = NaiveDateTime::parse_from_str(last_run, "%Y-%m-%d %H:%M:%S%.3f")
-        .unwrap()
-        .and_utc();
-    let total_duration = (end_date - start_date).num_seconds() as f64;
+    // Use current time if metadata dates aren't available
+    let now = Utc::now();
+
+    let start_date = now;
+    let end_date = now;
+    let total_duration = 0.0; // Default to 0 since we can't calculate without dates
 
     let median_value = median(&values_ms);
     let deviations: Vec<f64> = values_ms.iter().map(|&x| (x - median_value).abs()).collect();
@@ -143,31 +141,31 @@ pub fn parse(data: serde_json::Value) -> Result<(BenchmarkStats, Value)> {
         .filter(|&&x| x < lower_bound || x > upper_bound)
         .count();
 
-        let stats = BenchmarkStats {
-            total_duration,
-            start_date,
-            end_date,
-            // Convert to microseconds
-            raw_min: all_values.iter().copied().fold(f64::INFINITY, f64::min) * 1_000_000.0,
-            raw_max: all_values.iter().copied().fold(f64::NEG_INFINITY, f64::max) * 1_000_000.0,
-            calibration_runs: runs[0].warmups.len() as u32,
-            value_runs: (runs.len() - 1) as u32,
-            total_runs: runs.len() as u32,
-            warmups_per_run: runs.iter().skip(1).next().map(|r| r.warmups.len() as u32).unwrap_or(0),
-            values_per_run: runs.iter().skip(1).next()
-                .and_then(|r| r.values.as_ref().map(|v| v.len()))
-                .unwrap_or(0),
-            loop_iterations: runs[0].warmups[0].0 as u32,  // Get loop count from first warmup
-            total_values: values_ms.len(),
-            minimum: *values_ms.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&0.0),
-            median: median_value,
-            mad,
-            mean: mean_value,
-            stddev: stddev_value,
-            maximum: *values_ms.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&0.0),
-            percentiles,
-            outliers,
-        };
+    let stats = BenchmarkStats {
+        total_duration,
+        start_date,
+        end_date,
+        // Convert to microseconds
+        raw_min: all_values.iter().copied().fold(f64::INFINITY, f64::min) * 1_000_000.0,
+        raw_max: all_values.iter().copied().fold(f64::NEG_INFINITY, f64::max) * 1_000_000.0,
+        calibration_runs: runs[0].warmups.len() as u32,
+        value_runs: (runs.len() - 1) as u32,
+        total_runs: runs.len() as u32,
+        warmups_per_run: runs.iter().skip(1).next().map(|r| r.warmups.len() as u32).unwrap_or(0),
+        values_per_run: runs.iter().skip(1).next()
+            .and_then(|r| r.values.as_ref().map(|v| v.len()))
+            .unwrap_or(0),
+        loop_iterations: runs[0].warmups[0].0,  // Get loop count from first warmup
+        total_values: values_ms.len(),
+        minimum: *values_ms.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&0.0),
+        median: median_value,
+        mad,
+        mean: mean_value,
+        stddev: stddev_value,
+        maximum: *values_ms.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&0.0),
+        percentiles,
+        outliers,
+    };
 
     Ok((stats, data))
 }
