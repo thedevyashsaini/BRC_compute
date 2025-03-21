@@ -8,7 +8,7 @@ use rand::{thread_rng, Rng};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-const CITIES: [&str; 221] = [
+const CITIES: [&str; 216] = [
     "Gali-Makhian-Wali", "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Ahmedabad", "Chennai", "Kolkata", "Pune", "Jaipur", "Lucknow",
     "Kanpur", "Nagpur", "Indore", "Thane", "Bhopal", "Visakhapatnam", "Patna", "Vadodara", "Ghaziabad", "Ludhiana",
     "Agra", "Nashik", "Ranchi", "Faridabad", "Meerut", "Rajkot", "Kalyan-Dombivli", "Vasai-Virar", "Varanasi", "Srinagar",
@@ -16,15 +16,15 @@ const CITIES: [&str; 221] = [
     "Jodhpur", "Madurai", "Raipur", "Kota", "Chandigarh", "Guwahati", "Solapur", "Hubballi-Dharwad", "Mysore", "Tiruchirappalli",
     "Bareilly", "Aligarh", "Tiruppur", "Moradabad", "Bhubaneswar", "Salem", "Warangal", "Guntur", "Bhiwandi", "Saharanpur",
     "Gorakhpur", "Bikaner", "Amravati", "Lula-Ahir", "Jamshedpur", "Bhilai", "Cuttack", "Firozabad", "Kochi", "Nellore", "Bhavnagar",
-    "Dehradun", "Durgapur", "Asansol", "Rourkela", "Tatti-Khana", "Nanded", "Kolhapur", "Ajmer", "Akola", "Gulbarga", "Ujjain", "Bhosari",
+    "Dehradun", "Durgapur", "Asansol", "Rourkela", "Tatti-Khana", "Kolhapur", "Ajmer", "Akola", "Gulbarga", "Ujjain", "Bhosari",
     "Jamnagar", "Loni", "Siliguri", "Jhansi", "Ulhasnagar", "Jammu", "Sangli-Miraj-&-Kupwad", "Belagavi", "Mangalore", "Erode",
     "Tirunelveli", "Malegaon", "Gaya", "Udaipur", "Maheshtala", "Davanagere", "Kozhikode", "Kurnool", "Bokaro", "Rajahmundry",
     "South Dumdum", "Gopalpur", "Hajipur", "Bilaspur", "Muzaffarnagar", "Mathura", "Patiala", "Sagar", "Vellore", "Bijapur",
-    "Shimoga", "Burhanpur", "Panipat", "Darbhanga", "Dibrugarh", "Tumkur", "Bally", "Muzaffarpur", "Ambattur", "North-Dumdum", "Cumbum",
+    "Shimoga", "Burhanpur", "Panipat", "Dibrugarh", "Tumkur", "Bally", "Muzaffarpur", "Ambattur", "North-Dumdum", "Cumbum",
     "Rohtak", "Bhagalpur", "Kollam", "Dewas", "Nizamabad", "Shahjahanpur", "Bharatpur", "Bhusawal", "Ratlam", "Chhindwara",
-    "Dindigul", "Rewa", "Hajipur", "Ambala", "Korba", "Purnia", "Satna", "Kakinada", "Bhimavaram", "Ongole", "Kundara",
-    "Hosur", "Adoni", "Machilipatnam", "Proddatur", "Tiruvannamalai", "Sikar", "Gondia", "Bhiwani", "Sirsa", "Karaikal",
-    "Chittoor", "Dibrugarh", "Tezpur", "Shillong", "Imphal", "Aizawl", "Itanagar", "Kohima", "Agartala", "Gangtok",
+    "Dindigul", "Rewa", "Ambala", "Korba", "Purnia", "Satna", "Kakinada", "Bhimavaram", "Ongole", "Kundara",
+    "Hosur", "Adoni", "Machilipatnam", "Proddatur", "Tiruvannamalai", "Sikar", "Bhiwani", "Sirsa", "Karaikal",
+    "Chittoor", "Tezpur", "Shillong", "Imphal", "Aizawl", "Itanagar", "Kohima", "Agartala", "Gangtok",
     "Kavaratti", "Port-Blair", "Daman", "Silvassa", "Panaji", "Margao", "Mapusa", "Porvorim", "Karwar", "Hospet", "Lulla-Nagar",
     "Chikkamagaluru", "Raichur", "Bidar", "Yavatmal", "Chandrapur", "Wardha", "Nanded", "Gondia", "Hingoli", "Parbhani", "LaiLunga",
     "Jalgaon", "Amreli", "Bhuj", "Mehsana", "Anand", "Palanpur", "Surendranagar", "Gandhidham", "Himatnagar", "Junagadh",
