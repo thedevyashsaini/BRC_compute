@@ -92,7 +92,7 @@ async fn main() -> io::Result<()> {
     let validation_result = validator::validate_output(&expected_output_lines, "src/output.txt")?;
     if !validation_result.success {
         status::write_status(false, &validation_result.message).await?;
-        return Err(io::Error::new(io::ErrorKind::Other, validation_result.message));
+        return Ok(());
     }
 
     if let Err(error) = fs::remove_file("src/output.txt") {
