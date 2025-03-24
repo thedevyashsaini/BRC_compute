@@ -10,7 +10,7 @@ use std::io;
 use std::fs;
 
 const TIMEOUT: u64 = 40;
-const CALIBRATION_TIMEOUT: u64 = 20;
+const CALIBRATION_TIMEOUT: u64 = TIMEOUT + 1;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -92,6 +92,7 @@ async fn main() -> io::Result<()> {
     let validation_result = validator::validate_output(&expected_output_lines, "src/output.txt")?;
     if !validation_result.success {
         status::write_status(false, &validation_result.message).await?;
+        println!("{:?}", &validation_result.message);
         return Ok(());
     }
 
