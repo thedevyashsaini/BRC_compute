@@ -1,3 +1,5 @@
+<img width="1899" height="999" alt="image" src="https://github.com/user-attachments/assets/8f4424c6-d31c-4e73-b3c3-6bc8d576545c" />
+
 # The Compute Layer of the BRC
 This repo contains proof of all the brainfuck we had to go through on the server side to pull off hosting an entirely automated version of the BRC
 
@@ -5,6 +7,8 @@ This repo contains proof of all the brainfuck we had to go through on the server
 - Builds and pushes worker image to https://hub.docker.com/r/steakfisher1/brc-worker
 - Builds and pushes controller image to https://hub.docker.com/r/steakfisher1/brc-controller
 - Builds an Ubuntu binary of the rust daemon and updates the private and public BRC boilerplate repos
+
+<img width="10381" height="10431" alt="BRC_High_Level_Overview" src="https://github.com/user-attachments/assets/5335fea9-f37c-4a93-835c-a2202badd8f5" />
 
 ## Controller
 Acts as sort of a reverse proxy, that takes in requests via the /commit and /upgrade endpoints and accordingly puts it into the Proposal and Divorce queues respectively.
